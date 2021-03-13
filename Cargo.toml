@@ -2,7 +2,7 @@
 name = "git-hist"
 version = "0.1.0"
 authors = ["Ark <target.ark@gmail.com>"]
-description = "git history on a terminal"
+description = "Browse the history of files in any git repository **on the terminal**."
 repository = "https://github.com/arkark/git-hist"
 readme = "README.md"
 categories = ["command-line-utilities"]
@@ -10,3 +10,10 @@ keywords = ["git", "cli"]
 edition = "2018"
 
 [dependencies]
+anyhow = "1.0"
+clap = "3.0.0-beta.2"
+git2 = "0.13"
+
+[[bin]]
+name = "git-hist"
+path = "src/bin/main.rs"
