@@ -1,0 +1,12 @@
+[package]
+name = "git-hist"
+version = "0.1.0"
+authors = ["Ark <target.ark@gmail.com>"]
+description = "git history on a terminal"
+repository = "https://github.com/arkark/git-hist"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = ["git", "cli"]
+edition = "2018"
+
+[dependencies]
