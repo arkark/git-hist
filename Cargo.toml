@@ -2,7 +2,7 @@
 name = "git-hist"
 version = "0.1.0"
 authors = ["Ark <target.ark@gmail.com>"]
-description = "Browse the history of files in any git repository **on the terminal**."
+description = "A CLI to browse the history of files in any git repository **on the terminal**."
 repository = "https://github.com/arkark/git-hist"
 readme = "README.md"
 categories = ["command-line-utilities"]
