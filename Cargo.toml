@@ -10,10 +10,12 @@ keywords = ["git", "cli", "terminal"]
 edition = "2018"
 
 [dependencies]
+itertools = "0.10"
 anyhow = "1.0"
 clap = "3.0.0-beta.2"
 git2 = "0.13"
 crossterm = "0.19"
+tui = { version = "0.14", default-features = false, features = ["crossterm"] }
 
 [[bin]]
 name = "git-hist"
