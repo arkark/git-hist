@@ -6,13 +6,14 @@ description = "A CLI to browse the history of files in any git repository **on t
 repository = "https://github.com/arkark/git-hist"
 readme = "README.md"
 categories = ["command-line-utilities"]
-keywords = ["git", "cli"]
+keywords = ["git", "cli", "terminal"]
 edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
 clap = "3.0.0-beta.2"
 git2 = "0.13"
+crossterm = "0.19"
 
 [[bin]]
 name = "git-hist"
