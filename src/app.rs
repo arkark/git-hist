@@ -7,13 +7,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use git2::{
-    Blob, Commit, Delta, DescribeFormatOptions, DescribeOptions, ObjectType, Oid, Repository,
-};
+use git2::{Blob, Commit, Delta, ObjectType, Oid, Reference, Repository};
 use itertools::Itertools;
-use std::env;
 use std::io;
+use std::{collections::HashMap, env};
 use tui::{backend::CrosstermBackend, layout, widgets, Terminal};
+
 pub struct App;
 
 #[derive(Debug)]
@@ -221,21 +220,65 @@ fn display<W: io::Write>(
 ) -> Result<()> {
     let commit = history.current().get_commit(&repo);
     let commit_id = commit.as_object().short_id()?;
-    let names = repo
-        .references()?
-        .names()
-        .filter_map(|name| name.ok())
-        .filter(|name| {
-            repo.refname_to_id(name)
-                .ok()
-                .filter(|oid| *oid == commit.id())
-                .is_some()
-        })
-        .join(" ");
+
+    let references = repo.references()?.filter_map(|r| r.ok()).filter(|r| {
+        if let Some(oid) = r.target() {
+            oid == commit.id()
+        } else {
+            false
+        }
+    });
+    let references_groups: HashMap<&str, Vec<Reference<'_>>> =
+        references.into_group_map_by(|r| match r {
+            _ if r.is_branch() => "branch",
+            _ if r.is_remote() => "remote",
+            _ if r.is_tag() => "tag",
+            _ => "",
+        });
+
+    let empty_vec = Vec::new();
+
+    let head = repo.head().unwrap();
+    let head_names = if head.target().unwrap() == commit.id() && head.name() == Some("HEAD") {
+        vec![String::from("HEAD")]
+    } else {
+        vec![]
+    };
+    let branch_names = references_groups
+        .get("branch")
+        .unwrap_or(&empty_vec)
+        .into_iter()
+        .filter_map(|r| {
+            r.shorthand().map(|name| {
+                let head_prefix = if r.name() == head.name() {
+                    "HEAD -> "
+                } else {
+                    ""
+                };
+                format!("{}{}", head_prefix, name)
+            })
+        });
+    let remote_names = references_groups
+        .get("remote")
+        .unwrap_or(&empty_vec)
+        .into_iter()
+        .filter_map(|r| r.shorthand().map(|name| format!("{}", name)));
+    let tag_names = references_groups
+        .get("tag")
+        .unwrap_or(&empty_vec)
+        .into_iter()
+        .filter_map(|r| r.shorthand().map(|name| format!("tag: {}", name)));
+
+    let reference_text = head_names
+        .into_iter()
+        .chain(branch_names)
+        .chain(remote_names)
+        .chain(tag_names)
+        .join(", ");
 
     let mut title = format!(" Commit: {} ", commit_id.as_str().unwrap());
-    if !names.is_empty() {
-        title.push_str(&(names + " "));
+    if !reference_text.is_empty() {
+        title.push_str(&format!("({}) ", reference_text));
     }
 
     terminal.draw(|frame| {
