@@ -6,6 +6,7 @@ use crossterm::{
     cursor,
     event::{read, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
+    style::style,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use git2::{Blob, Commit, Delta, DiffFindOptions, ObjectType, Oid, Reference, Repository};
@@ -254,7 +255,24 @@ fn display<W: io::Write>(
     repo: &Repository,
 ) -> Result<()> {
     let commit = history.current().get_commit(&repo);
-    let commit_id = commit.as_object().short_id()?;
+
+    let backward_symbol = if history.is_earliest() { " " } else { "<<" };
+    let backward_text = vec![
+        text::Spans::from(""),
+        text::Spans::from(backward_symbol),
+        text::Spans::from(backward_symbol),
+        text::Spans::from(""),
+    ];
+
+    let foreward_symbol = if history.is_latest() { " " } else { ">>" };
+    let foreward_text = vec![
+        text::Spans::from(""),
+        text::Spans::from(foreward_symbol),
+        text::Spans::from(foreward_symbol),
+        text::Spans::from(""),
+    ];
+
+    let commit_short_id = commit.as_object().short_id()?;
 
     let references = repo.references()?.filter_map(|r| r.ok()).filter(|r| {
         if let Some(oid) = r.target() {
@@ -323,7 +341,9 @@ fn display<W: io::Write>(
     title.push(text::Span::raw(" "));
     title.push(text::Span::raw("Commit:"));
     title.push(text::Span::raw(" "));
-    title.push(text::Span::raw(commit_id.as_str().unwrap_or_default()));
+    title.push(text::Span::raw(
+        commit_short_id.as_str().unwrap_or_default(),
+    ));
     title.push(text::Span::raw(" "));
     title.push(text::Span::raw(commit_date));
     title.push(text::Span::raw(" "));
@@ -386,7 +406,7 @@ fn display<W: io::Write>(
     let commit_paragraph_lines = vec![commit_summary, change_status];
 
     terminal.draw(|frame| {
-        let chunks = layout::Layout::default()
+        let vertical_chunks = layout::Layout::default()
             .direction(layout::Direction::Vertical)
             .constraints(
                 [
@@ -396,17 +416,44 @@ fn display<W: io::Write>(
                 .as_ref(),
             )
             .split(frame.size());
+        let commit_chunk = vertical_chunks[0];
+        let diff_chunk = vertical_chunks[1];
+
+        // commit
+        let horizontal_chunks = layout::Layout::default()
+            .direction(layout::Direction::Horizontal)
+            .constraints(
+                [
+                    layout::Constraint::Length(2),
+                    layout::Constraint::Min(0),
+                    layout::Constraint::Length(2),
+                ]
+                .as_ref(),
+            )
+            .split(commit_chunk);
+        let backward_chunk = horizontal_chunks[0];
+        let backward_paragraph = widgets::Paragraph::new(backward_text);
+        frame.render_widget(backward_paragraph, backward_chunk);
+        let foreward_chunk = horizontal_chunks[2];
+        let foreward_paragraph = widgets::Paragraph::new(foreward_text);
+        frame.render_widget(foreward_paragraph, foreward_chunk);
+
+        let commit_content_chunk = layout::Layout::default()
+            .horizontal_margin(1)
+            .constraints([layout::Constraint::Min(0)].as_ref())
+            .split(horizontal_chunks[1])[0];
         let block = widgets::Block::default()
             .title(title)
             .borders(widgets::Borders::ALL)
             .border_type(widgets::BorderType::Rounded);
-        let paragraph = widgets::Paragraph::new(commit_paragraph_lines).block(block);
+        let commit_paragraph = widgets::Paragraph::new(commit_paragraph_lines).block(block);
+        frame.render_widget(commit_paragraph, commit_content_chunk);
 
-        frame.render_widget(paragraph, chunks[0]);
+        // diff
         let block = widgets::Block::default()
             .title(" TODO: file diff ")
             .borders(widgets::Borders::ALL);
-        frame.render_widget(block, chunks[1]);
+        frame.render_widget(block, diff_chunk);
     })?;
 
     Ok(())
