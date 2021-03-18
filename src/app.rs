@@ -10,7 +10,8 @@ use crossterm::{
 };
 use git2::{Blob, Commit, Delta, DiffFindOptions, ObjectType, Oid, Reference, Repository};
 use itertools::Itertools;
-use std::io;
+use similar::{ChangeTag, TextDiff};
+use std::{cmp, io};
 use std::{collections::HashMap, env};
 use tui::{backend::CrosstermBackend, layout, text, widgets, Terminal};
 
@@ -404,15 +405,64 @@ fn display<W: io::Write>(
 
     let commit_paragraph_lines = vec![commit_summary, change_status];
 
-    // TODO: diff calculation
     let old_file_text = history
         .current()
         .get_old_blob(repo)
-        .map(|blob| String::from_utf8(blob.content().to_vec()).unwrap());
+        .map(|blob| blob.content().to_vec())
+        .unwrap_or_default();
     let new_file_text = history
         .current()
         .get_new_blob(repo)
-        .map(|blob| String::from_utf8(blob.content().to_vec()).unwrap());
+        .map(|blob| blob.content().to_vec())
+        .unwrap_or_default();
+
+    let mut diff_lines = vec![];
+    let text_diff = TextDiff::from_lines(&old_file_text, &new_file_text);
+    let max_line_number_len = text_diff
+        .iter_all_changes()
+        .filter_map(|change| {
+            cmp::max(change.old_index(), change.new_index()).map(|x| {
+                // 0-indexed to 1-indexed
+                x + 1
+            })
+        })
+        .fold(0, |acc, number| cmp::max(acc, number))
+        .to_string()
+        .len();
+    for change in text_diff.iter_all_changes() {
+        let old_line_number = format!(
+            "{:>1$}",
+            if let Some(index) = change.old_index() {
+                (index + 1).to_string()
+            } else {
+                String::new()
+            },
+            max_line_number_len,
+        );
+        let new_line_number = format!(
+            "{:>1$}",
+            if let Some(index) = change.new_index() {
+                (index + 1).to_string()
+            } else {
+                String::new()
+            },
+            max_line_number_len,
+        );
+        let sign = match change.tag() {
+            ChangeTag::Delete => "-",
+            ChangeTag::Insert => "+",
+            ChangeTag::Equal => " ",
+        };
+        diff_lines.push(text::Spans::from(vec![
+            text::Span::raw(old_line_number),
+            text::Span::raw(" "),
+            text::Span::raw(new_line_number),
+            text::Span::raw("|"),
+            text::Span::raw(sign),
+            text::Span::raw(" "),
+            text::Span::raw(change.to_string_lossy()),
+        ]))
+    }
 
     terminal.draw(|frame| {
         let vertical_chunks = layout::Layout::default()
@@ -459,7 +509,7 @@ fn display<W: io::Write>(
         frame.render_widget(commit_paragraph, commit_content_chunk);
 
         // diff
-        let diff_paragraph = widgets::Paragraph::new(text::Text::raw(new_file_text.unwrap()));
+        let diff_paragraph = widgets::Paragraph::new(diff_lines);
         frame.render_widget(diff_paragraph, diff_chunk);
     })?;
 
