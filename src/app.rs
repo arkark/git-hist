@@ -6,7 +6,6 @@ use crossterm::{
     cursor,
     event::{read, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
-    style::style,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use git2::{Blob, Commit, Delta, DiffFindOptions, ObjectType, Oid, Reference, Repository};
@@ -54,8 +53,8 @@ impl TurningPoint {
         repo.find_blob(self.old_file_oid).ok()
     }
 
-    fn get_new_blob<'repo>(&self, repo: &'repo Repository) -> Blob<'repo> {
-        repo.find_blob(self.new_file_oid).unwrap()
+    fn get_new_blob<'repo>(&self, repo: &'repo Repository) -> Option<Blob<'repo>> {
+        repo.find_blob(self.new_file_oid).ok()
     }
 }
 
@@ -405,6 +404,16 @@ fn display<W: io::Write>(
 
     let commit_paragraph_lines = vec![commit_summary, change_status];
 
+    // TODO: diff calculation
+    let old_file_text = history
+        .current()
+        .get_old_blob(repo)
+        .map(|blob| String::from_utf8(blob.content().to_vec()).unwrap());
+    let new_file_text = history
+        .current()
+        .get_new_blob(repo)
+        .map(|blob| String::from_utf8(blob.content().to_vec()).unwrap());
+
     terminal.draw(|frame| {
         let vertical_chunks = layout::Layout::default()
             .direction(layout::Direction::Vertical)
@@ -450,10 +459,8 @@ fn display<W: io::Write>(
         frame.render_widget(commit_paragraph, commit_content_chunk);
 
         // diff
-        let block = widgets::Block::default()
-            .title(" TODO: file diff ")
-            .borders(widgets::Borders::ALL);
-        frame.render_widget(block, diff_chunk);
+        let diff_paragraph = widgets::Paragraph::new(text::Text::raw(new_file_text.unwrap()));
+        frame.render_widget(diff_paragraph, diff_chunk);
     })?;
 
     Ok(())
