@@ -85,7 +85,7 @@ impl History {
         }
     }
 
-    pub fn go_foreward(&mut self) -> Option<&TurningPoint> {
+    pub fn go_forward(&mut self) -> Option<&TurningPoint> {
         if self.current_index > 0 {
             self.current_index -= 1;
             Some(self.current())
@@ -222,7 +222,7 @@ impl App {
                         code: KeyCode::Right,
                         modifiers: _,
                     } => {
-                        if let Some(_) = history.go_foreward() {
+                        if let Some(_) = history.go_forward() {
                             display(&mut terminal, &history, &repo)?;
                         }
                     }
@@ -264,11 +264,11 @@ fn display<W: io::Write>(
         text::Spans::from(""),
     ];
 
-    let foreward_symbol = if history.is_latest() { " " } else { ">>" };
-    let foreward_text = vec![
+    let forward_symbol = if history.is_latest() { " " } else { ">>" };
+    let forward_text = vec![
         text::Spans::from(""),
-        text::Spans::from(foreward_symbol),
-        text::Spans::from(foreward_symbol),
+        text::Spans::from(forward_symbol),
+        text::Spans::from(forward_symbol),
         text::Spans::from(""),
     ];
 
@@ -434,9 +434,9 @@ fn display<W: io::Write>(
         let backward_chunk = horizontal_chunks[0];
         let backward_paragraph = widgets::Paragraph::new(backward_text);
         frame.render_widget(backward_paragraph, backward_chunk);
-        let foreward_chunk = horizontal_chunks[2];
-        let foreward_paragraph = widgets::Paragraph::new(foreward_text);
-        frame.render_widget(foreward_paragraph, foreward_chunk);
+        let forward_chunk = horizontal_chunks[2];
+        let forward_paragraph = widgets::Paragraph::new(forward_text);
+        frame.render_widget(forward_paragraph, forward_chunk);
 
         let commit_content_chunk = layout::Layout::default()
             .horizontal_margin(1)
