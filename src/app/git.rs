@@ -1,0 +1,100 @@
+use super::history::{History, TurningPoint};
+use anyhow::{anyhow, Context, Result};
+use git2::{DiffFindOptions, ObjectType, Repository};
+use std::env;
+use std::path;
+
+pub fn get_repository() -> Result<Repository> {
+    let repo = Repository::discover(env::current_dir()?)
+        .context("Faild to open a git repository for the current directory")?;
+    if repo.is_bare() {
+        Err(anyhow!("git-hist dose not support a bare repository"))?;
+    }
+    Ok(repo)
+}
+
+pub fn get_history<P: AsRef<path::Path>>(file_path: P) -> Result<History> {
+    let repo = get_repository()?;
+
+    let file_path_from_repository = env::current_dir()
+        .unwrap()
+        .join(&file_path)
+        .strip_prefix(repo.path().parent().unwrap())
+        .unwrap()
+        .to_path_buf();
+
+    let mut revwalk = repo
+        .revwalk()
+        .context("Failed to traverse the commit graph")?;
+    revwalk.push_head().context("Failed to find HEAD")?;
+    revwalk.simplify_first_parent()?;
+
+    let commits = revwalk
+        .map(|oid| oid.and_then(|oid| repo.find_commit(oid)).unwrap())
+        .collect::<Vec<_>>();
+    let latest_file_oid = commits
+        .first()
+        .context("Failed to get any commit")?
+        .tree()
+        .unwrap()
+        .get_path(&file_path_from_repository)
+        .with_context(|| {
+            format!(
+                "Failed to find the file '{}' on HEAD",
+                file_path.as_ref().to_string_lossy()
+            )
+        })
+        .and_then(|entry| {
+            if let Some(ObjectType::Blob) = entry.kind() {
+                Ok(entry)
+            } else {
+                Err(anyhow!(
+                    "Failed to find the path '{}' as a blob on HEAD",
+                    file_path.as_ref().to_string_lossy()
+                ))
+            }
+        })?
+        .id();
+
+    let mut file_oid = latest_file_oid;
+    let mut file_path = file_path_from_repository;
+    let history = History::new(commits.iter().filter_map(|commit| {
+        let old_tree = commit.parent(0).and_then(|p| p.tree()).ok();
+        let new_tree = commit.tree().ok();
+        assert!(new_tree.is_some());
+
+        let mut diff = repo
+            .diff_tree_to_tree(old_tree.as_ref(), new_tree.as_ref(), None)
+            .unwrap();
+
+        // detect file renames
+        diff.find_similar(Some(DiffFindOptions::new().renames(true)))
+            .unwrap();
+
+        let delta = diff.deltas().find(|delta| {
+            delta.new_file().id() == file_oid
+                && delta
+                    .new_file()
+                    .path()
+                    .filter(|path| *path == file_path)
+                    .is_some()
+        });
+        if let Some(delta) = delta.as_ref() {
+            file_oid = delta.old_file().id();
+            file_path = delta.old_file().path().unwrap().to_path_buf();
+        }
+
+        delta.map(|delta| {
+            TurningPoint::new(
+                commit.id(),
+                delta.old_file().id(),
+                delta.new_file().id(),
+                delta.old_file().path().map(|p| p.to_string_lossy()),
+                delta.new_file().path().map(|p| p.to_string_lossy()),
+                delta.status(),
+            )
+        })
+    }));
+
+    Ok(history)
+}

@@ -1,10 +1,9 @@
 use anyhow::Result;
-use git_hist::{app::App, args::Args};
+use git_hist::{app, args::Args};
 
 fn main() -> Result<()> {
     let args = Args::load();
-
-    App::run(args)?;
+    app::run(args)?;
 
     Ok(())
 }

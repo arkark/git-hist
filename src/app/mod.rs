@@ -1,262 +1,59 @@
 use crate::args::Args;
 
-use anyhow::{anyhow, Context, Result};
+mod controller;
+mod git;
+mod history;
+mod terminal;
+
+use controller::State;
+use history::History;
+use terminal::Terminal;
+
+use anyhow::Result;
 use chrono::TimeZone;
-use crossterm::{
-    cursor,
-    event::{read, Event, KeyCode, KeyEvent, KeyModifiers},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use git2::{Blob, Commit, Delta, DiffFindOptions, ObjectType, Oid, Reference, Repository};
+use git2::{Delta, Reference, Repository};
 use itertools::Itertools;
 use similar::{ChangeTag, TextDiff};
-use std::{cmp, io};
-use std::{collections::HashMap, env};
-use tui::{backend::CrosstermBackend, layout, text, widgets, Terminal};
+use std::cmp;
+use std::collections::HashMap;
+use tui::{layout, text, widgets};
 
-pub struct App;
+pub fn run(args: Args) -> Result<()> {
+    let repo = git::get_repository()?;
+    let history = git::get_history(&args.file_path)?;
 
-#[derive(Debug)]
-struct TurningPoint {
-    commit_oid: Oid,
-    old_file_oid: Oid,
-    new_file_oid: Oid,
-    old_path: Option<String>,
-    new_path: Option<String>,
-    change_status: Delta,
-}
+    terminal::initialize()?;
 
-impl TurningPoint {
-    pub fn new<S: Into<String>>(
-        commit_oid: Oid,
-        old_file_oid: Oid,
-        new_file_oid: Oid,
-        old_path: Option<S>,
-        new_path: Option<S>,
-        change_status: Delta,
-    ) -> Self {
-        Self {
-            commit_oid,
-            old_file_oid,
-            new_file_oid,
-            old_path: old_path.map(|path| path.into()),
-            new_path: new_path.map(|path| path.into()),
-            change_status,
-        }
-    }
+    let mut terminal = Terminal::new()?;
+    let mut current_state = State::new(history.latest().unwrap(), 0);
+    display(&mut terminal, &current_state, &history, &repo)?;
 
-    fn get_commit<'repo>(&self, repo: &'repo Repository) -> Commit<'repo> {
-        repo.find_commit(self.commit_oid).unwrap()
-    }
-
-    fn get_old_blob<'repo>(&self, repo: &'repo Repository) -> Option<Blob<'repo>> {
-        repo.find_blob(self.old_file_oid).ok()
-    }
-
-    fn get_new_blob<'repo>(&self, repo: &'repo Repository) -> Option<Blob<'repo>> {
-        repo.find_blob(self.new_file_oid).ok()
-    }
-}
-
-struct History {
-    points: Vec<TurningPoint>,
-    current_index: usize,
-}
-
-impl History {
-    pub fn new<I: Iterator<Item = TurningPoint>>(points: I) -> Self {
-        Self {
-            points: points.collect(),
-            current_index: 0,
-        }
-    }
-
-    pub fn current(&self) -> &TurningPoint {
-        self.points.get(self.current_index).unwrap()
-    }
-
-    pub fn go_backward(&mut self) -> Option<&TurningPoint> {
-        if self.current_index + 1 < self.points.len() {
-            self.current_index += 1;
-            Some(self.current())
+    loop {
+        if let Some(next_state) = current_state.poll_next_event(&history)? {
+            current_state = next_state;
+            display(&mut terminal, &current_state, &history, &repo)?;
         } else {
-            None
+            break;
         }
     }
 
-    pub fn go_forward(&mut self) -> Option<&TurningPoint> {
-        if self.current_index > 0 {
-            self.current_index -= 1;
-            Some(self.current())
-        } else {
-            None
-        }
-    }
-
-    pub fn is_latest(&self) -> bool {
-        self.current_index == 0
-    }
-
-    pub fn is_earliest(&self) -> bool {
-        self.current_index + 1 == self.points.len()
-    }
+    terminal::terminate()?;
+    Ok(())
 }
 
-impl App {
-    pub fn run(args: Args) -> Result<()> {
-        let repo = Repository::discover(env::current_dir()?)
-            .context("Faild to open a git repository for the current directory")?;
-        if repo.is_bare() {
-            Err(anyhow!("git-hist dose not support a bare repository"))?;
-        }
-
-        let file_path_from_repository = env::current_dir()
-            .unwrap()
-            .join(&args.file_path)
-            .strip_prefix(repo.path().parent().unwrap())
-            .unwrap()
-            .to_path_buf();
-
-        let mut revwalk = repo
-            .revwalk()
-            .context("Failed to traverse the commit graph")?;
-        revwalk.push_head().context("Failed to find HEAD")?;
-        revwalk.simplify_first_parent()?;
-
-        let commits = revwalk
-            .map(|oid| oid.and_then(|oid| repo.find_commit(oid)).unwrap())
-            .collect::<Vec<_>>();
-        let latest_file_oid = commits
-            .first()
-            .context("Failed to get any commit")?
-            .tree()
-            .unwrap()
-            .get_path(&file_path_from_repository)
-            .with_context(|| format!("Failed to find the file '{}' on HEAD", args.file_path))
-            .and_then(|entry| {
-                if let Some(ObjectType::Blob) = entry.kind() {
-                    Ok(entry)
-                } else {
-                    Err(anyhow!(
-                        "Failed to find the path '{}' as a blob on HEAD",
-                        args.file_path
-                    ))
-                }
-            })?
-            .id();
-
-        let mut file_oid = latest_file_oid;
-        let mut file_path = file_path_from_repository;
-        let mut history = History::new(commits.iter().filter_map(|commit| {
-            let old_tree = commit.parent(0).and_then(|p| p.tree()).ok();
-            let new_tree = commit.tree().ok();
-            assert!(new_tree.is_some());
-
-            let mut diff = repo
-                .diff_tree_to_tree(old_tree.as_ref(), new_tree.as_ref(), None)
-                .unwrap();
-
-            // detect file renames
-            diff.find_similar(Some(DiffFindOptions::new().renames(true)))
-                .unwrap();
-
-            let delta = diff.deltas().find(|delta| {
-                delta.new_file().id() == file_oid
-                    && delta
-                        .new_file()
-                        .path()
-                        .filter(|path| *path == file_path)
-                        .is_some()
-            });
-            if let Some(delta) = delta.as_ref() {
-                file_oid = delta.old_file().id();
-                file_path = delta.old_file().path().unwrap().to_path_buf();
-            }
-
-            delta.map(|delta| {
-                TurningPoint::new(
-                    commit.id(),
-                    delta.old_file().id(),
-                    delta.new_file().id(),
-                    delta.old_file().path().map(|p| p.to_string_lossy()),
-                    delta.new_file().path().map(|p| p.to_string_lossy()),
-                    delta.status(),
-                )
-            })
-        }));
-
-        enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, cursor::Hide)?;
-
-        let stdout = io::stdout();
-        let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
-        terminal.clear()?;
-
-        loop {
-            display(&mut terminal, &history, &repo)?;
-            match read()? {
-                Event::Key(event) => match event {
-                    KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                    }
-                    | KeyEvent {
-                        code: KeyCode::Char('d'),
-                        modifiers: KeyModifiers::CONTROL,
-                    }
-                    | KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: _,
-                    } => break,
-                    KeyEvent {
-                        code: KeyCode::Up,
-                        modifiers: _,
-                    } => {}
-                    KeyEvent {
-                        code: KeyCode::Down,
-                        modifiers: _,
-                    } => {}
-                    KeyEvent {
-                        code: KeyCode::Right,
-                        modifiers: _,
-                    } => {
-                        if let Some(_) = history.go_forward() {
-                            display(&mut terminal, &history, &repo)?;
-                        }
-                    }
-                    KeyEvent {
-                        code: KeyCode::Left,
-                        modifiers: _,
-                    } => {
-                        if let Some(_) = history.go_backward() {
-                            display(&mut terminal, &history, &repo)?;
-                        }
-                    }
-                    _ => {
-                        //
-                    }
-                },
-                _ => {}
-            }
-        }
-
-        execute!(io::stdout(), cursor::Show, LeaveAlternateScreen)?;
-        disable_raw_mode()?;
-
-        Ok(())
-    }
-}
-
-fn display<W: io::Write>(
-    terminal: &mut Terminal<CrosstermBackend<W>>,
+fn display(
+    terminal: &mut Terminal,
+    current_state: &State,
     history: &History,
     repo: &Repository,
 ) -> Result<()> {
-    let commit = history.current().get_commit(&repo);
+    let commit = current_state.point().get_commit(&repo);
 
-    let backward_symbol = if history.is_earliest() { " " } else { "<<" };
+    let backward_symbol = if let Some(_) = history.backward(current_state.point()) {
+        "<<"
+    } else {
+        " "
+    };
     let backward_text = vec![
         text::Spans::from(""),
         text::Spans::from(backward_symbol),
@@ -264,7 +61,11 @@ fn display<W: io::Write>(
         text::Spans::from(""),
     ];
 
-    let forward_symbol = if history.is_latest() { " " } else { ">>" };
+    let forward_symbol = if let Some(_) = history.forward(current_state.point()) {
+        ">>"
+    } else {
+        "  "
+    };
     let forward_text = vec![
         text::Spans::from(""),
         text::Spans::from(forward_symbol),
@@ -380,11 +181,11 @@ fn display<W: io::Write>(
     let commit_summary = commit.summary().unwrap_or_default();
     let commit_summary = text::Spans::from(vec![text::Span::raw(commit_summary)]);
 
-    let old_path = history.current().old_path.as_ref();
-    let new_path = history.current().new_path.as_ref();
+    let old_path = current_state.point().old_path();
+    let new_path = current_state.point().new_path();
     assert!(new_path.is_some());
 
-    let change_status = match history.current().change_status {
+    let change_status = match current_state.point().diff_status() {
         Delta::Modified => vec![
             text::Span::raw("* Modified: "),
             text::Span::raw(new_path.unwrap()),
@@ -405,13 +206,13 @@ fn display<W: io::Write>(
 
     let commit_paragraph_lines = vec![commit_summary, change_status];
 
-    let old_file_text = history
-        .current()
+    let old_file_text = current_state
+        .point()
         .get_old_blob(repo)
         .map(|blob| blob.content().to_vec())
         .unwrap_or_default();
-    let new_file_text = history
-        .current()
+    let new_file_text = current_state
+        .point()
         .get_new_blob(repo)
         .map(|blob| blob.content().to_vec())
         .unwrap_or_default();
