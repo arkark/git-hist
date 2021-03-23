@@ -1,4 +1,4 @@
-use super::history::{History, TurningPoint};
+use crate::app::history::{History, TurningPoint};
 use anyhow::{anyhow, Context, Result};
 use git2::{DiffFindOptions, ObjectType, Repository};
 use std::env;
