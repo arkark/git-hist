@@ -9,6 +9,7 @@ use tui::{layout, text, widgets};
 
 pub const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
 pub const COMMIT_INFO_OUTER_HEIGHT: u16 = COMMIT_INFO_INNER_HEIGHT + 2;
+pub const NAVI_WIDTH: u16 = 3;
 
 #[derive(Debug)]
 pub struct Dashboard<'a> {
@@ -20,12 +21,12 @@ pub struct Dashboard<'a> {
 }
 
 impl<'a> Dashboard<'a> {
-    pub fn new(current_state: &'a State, repo: &'a Repository) -> Result<Self> {
-        let left_navi_text = get_left_navi_text(&current_state, &repo);
-        let right_navi_text = get_right_navi_text(&current_state, &repo);
-        let commit_info_title = get_commit_info_title(&current_state, &repo)?;
-        let commit_info_text = get_commit_info_text(&current_state, &repo);
-        let diff_text = get_diff_text(&current_state, &repo);
+    pub fn new(state: &'a State, repo: &'a Repository) -> Result<Self> {
+        let left_navi_text = get_left_navi_text(&state, &repo);
+        let right_navi_text = get_right_navi_text(&state, &repo);
+        let commit_info_title = get_commit_info_title(&state, &repo)?;
+        let commit_info_text = get_commit_info_text(&state, &repo);
+        let diff_text = get_diff_text(&state, &repo);
 
         Ok(Self {
             commit_info_title,
@@ -56,9 +57,9 @@ impl<'a> Dashboard<'a> {
                 .direction(layout::Direction::Horizontal)
                 .constraints(
                     [
-                        layout::Constraint::Length(2),
+                        layout::Constraint::Length(NAVI_WIDTH),
                         layout::Constraint::Min(0),
-                        layout::Constraint::Length(2),
+                        layout::Constraint::Length(NAVI_WIDTH),
                     ]
                     .as_ref(),
                 )
@@ -66,7 +67,6 @@ impl<'a> Dashboard<'a> {
             let left_navi_chunk = horizontal_chunks[0];
             let right_navi_chunk = horizontal_chunks[2];
             let commit_info_chunk = layout::Layout::default()
-                .horizontal_margin(1)
                 .constraints([layout::Constraint::Min(0)].as_ref())
                 .split(horizontal_chunks[1])[0];
 
@@ -92,43 +92,34 @@ impl<'a> Dashboard<'a> {
     }
 }
 
-fn get_left_navi_text<'a>(current_state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
-    let backward_symbol = if current_state.is_earliest_commit() {
-        " "
-    } else {
-        "<<"
-    };
+fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+    let backward_symbol = if state.is_earliest_commit() { "" } else { "<<" };
+    let up_symbol = if state.is_first_line_index() { "" } else { "^" };
+    let down_symbol = if state.is_last_line_index() { "" } else { "v" };
 
     vec![
-        text::Spans::from(""),
-        text::Spans::from(backward_symbol),
-        text::Spans::from(backward_symbol),
-        text::Spans::from(""),
+        text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
     ]
 }
 
-fn get_right_navi_text<'a>(
-    current_state: &'a State,
-    _repo: &'a Repository,
-) -> Vec<text::Spans<'a>> {
-    let forward_symbol = if current_state.is_latest_commit() {
-        "  "
-    } else {
-        ">>"
-    };
+fn get_right_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+    let forward_symbol = if state.is_latest_commit() { "  " } else { ">>" };
+    let up_symbol = if state.is_first_line_index() { "" } else { "^" };
+    let down_symbol = if state.is_last_line_index() { "" } else { "v" };
+
     vec![
-        text::Spans::from(""),
-        text::Spans::from(forward_symbol),
-        text::Spans::from(forward_symbol),
-        text::Spans::from(""),
+        text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
+        text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
     ]
 }
 
-fn get_commit_info_title<'a>(
-    current_state: &'a State,
-    repo: &'a Repository,
-) -> Result<text::Spans<'a>> {
-    let commit = current_state.point().get_commit(&repo);
+fn get_commit_info_title<'a>(state: &'a State, repo: &'a Repository) -> Result<text::Spans<'a>> {
+    let commit = state.point().get_commit(&repo);
 
     let commit_short_id = commit.as_object().short_id()?;
 
@@ -238,20 +229,17 @@ fn get_commit_info_title<'a>(
     Ok(commit_info_title)
 }
 
-fn get_commit_info_text<'a>(
-    current_state: &'a State,
-    repo: &'a Repository,
-) -> Vec<text::Spans<'a>> {
-    let commit = current_state.point().get_commit(&repo);
+fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text::Spans<'a>> {
+    let commit = state.point().get_commit(&repo);
 
     let commit_summary = String::from(commit.summary().unwrap_or_default());
     let commit_summary = text::Spans::from(vec![text::Span::raw(commit_summary)]);
 
-    let old_path = current_state.point().old_path();
-    let new_path = current_state.point().new_path();
+    let old_path = state.point().old_path();
+    let new_path = state.point().new_path();
     assert!(new_path.is_some());
 
-    let change_status = match current_state.point().diff_status() {
+    let change_status = match state.point().diff_status() {
         Delta::Modified => vec![
             text::Span::raw("* Modified: "),
             text::Span::raw(new_path.unwrap()),
@@ -273,14 +261,10 @@ fn get_commit_info_text<'a>(
     vec![commit_summary, change_status]
 }
 
-fn get_diff_text<'a>(current_state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+fn get_diff_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
-    let max_line_number_len = current_state.point().max_line_number_len();
-    for line in current_state
-        .point()
-        .iter_diff_lines()
-        .skip(current_state.line_index())
-    {
+    let max_line_number_len = state.point().max_line_number_len();
+    for line in state.point().iter_diff_lines().skip(state.line_index()) {
         let old_line_number = format!(
             "{:>1$}",
             if let Some(number) = line.old_line_number() {
