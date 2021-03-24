@@ -263,7 +263,7 @@ fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text:
 
 fn get_diff_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
-    let max_line_number_len = state.point().max_line_number_len();
+    let max_line_number_len = state.max_line_number_len();
     for line in state.point().iter_diff_lines().skip(state.line_index()) {
         let old_line_number = format!(
             "{:>1$}",
