@@ -52,8 +52,10 @@ impl<'a> Diff<'a> {
             .unwrap_or_default();
         TextDiff::from_lines(&old_file_text, &new_file_text)
             .iter_all_changes()
-            .map(|change| {
+            .enumerate()
+            .map(|(index, change)| {
                 DiffLine::new(
+                    index,
                     change.old_index(),
                     change.new_index(),
                     change.tag(),
@@ -109,23 +111,88 @@ impl<'a> Diff<'a> {
         .unwrap()
     }
 
-    pub fn is_first_index(&self, index: usize, terminal_height: usize) -> bool {
-        let lhs = index;
-        let rhs = self.allowed_min_index(terminal_height);
-        assert!(lhs >= rhs);
-        lhs == rhs
+    pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
+        index > self.allowed_min_index(terminal_height)
     }
 
-    pub fn is_last_index(&self, index: usize, terminal_height: usize) -> bool {
-        let lhs = index;
-        let rhs = self.allowed_max_index(terminal_height);
-        assert!(lhs <= rhs);
-        lhs == rhs
+    pub fn can_move_down(&self, index: usize, terminal_height: usize) -> bool {
+        index < self.allowed_max_index(terminal_height)
+    }
+
+    pub fn nearest_old_index_pair(&self, index: usize) -> IndexPair {
+        if let Some(line) = self
+            .lines()
+            .iter()
+            .skip(index)
+            .find(|line| line.old_index.is_some())
+        {
+            assert!(line.index >= index);
+            IndexPair::new(line.index - index, line.old_index.unwrap())
+        } else if let Some(line) = self
+            .lines()
+            .iter()
+            .take(index)
+            .rev()
+            .find(|line| line.old_index.is_some())
+        {
+            assert!(line.index < index);
+            IndexPair::new(0, line.old_index.unwrap())
+        } else {
+            IndexPair::new(0, 0)
+        }
+    }
+
+    pub fn nearest_new_index_pair(&self, index: usize) -> IndexPair {
+        if let Some(line) = self
+            .lines()
+            .iter()
+            .skip(index)
+            .find(|line| line.new_index.is_some())
+        {
+            assert!(line.index >= index);
+            IndexPair::new(line.index - index, line.new_index.unwrap())
+        } else if let Some(line) = self
+            .lines()
+            .iter()
+            .take(index)
+            .rev()
+            .find(|line| line.new_index.is_some())
+        {
+            assert!(line.index < index);
+            IndexPair::new(0, line.new_index.unwrap())
+        } else {
+            IndexPair::new(0, 0)
+        }
+    }
+
+    pub fn find_index_from_old_index(&self, old_index: usize) -> Option<usize> {
+        self.lines()
+            .iter()
+            .find(|line| {
+                line.old_index
+                    // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
+                    .filter(|i| *i == old_index)
+                    .is_some()
+            })
+            .map(|line| line.index)
+    }
+
+    pub fn find_index_from_new_index(&self, new_index: usize) -> Option<usize> {
+        self.lines()
+            .iter()
+            .find(|line| {
+                line.new_index
+                    // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
+                    .filter(|i| *i == new_index)
+                    .is_some()
+            })
+            .map(|line| line.index)
     }
 }
 
 #[derive(Debug)]
 pub struct DiffLine {
+    index: usize,
     old_index: Option<usize>,
     new_index: Option<usize>,
     tag: ChangeTag,
@@ -134,12 +201,14 @@ pub struct DiffLine {
 
 impl DiffLine {
     fn new(
+        index: usize,
         old_index: Option<usize>,
         new_index: Option<usize>,
         tag: ChangeTag,
         text: impl Into<String>,
     ) -> Self {
         Self {
+            index,
             old_index,
             new_index,
             tag,
@@ -165,5 +234,28 @@ impl DiffLine {
 
     pub fn text(&self) -> &str {
         self.text.as_str()
+    }
+}
+
+#[derive(Debug)]
+pub struct IndexPair {
+    relative_index: usize, // an index from the top of a diff shown in a terminal
+    partial_index: usize,  // old_index or new_index
+}
+
+impl IndexPair {
+    pub fn new(relative_index: usize, partial_index: usize) -> Self {
+        Self {
+            relative_index,
+            partial_index,
+        }
+    }
+
+    pub fn relative_index(&self) -> usize {
+        self.relative_index
+    }
+
+    pub fn partial_index(&self) -> usize {
+        self.partial_index
     }
 }

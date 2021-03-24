@@ -41,41 +41,53 @@ impl<'a> State<'a> {
         self.is_earliest_commit
     }
 
-    pub fn is_first_line_index(&self) -> bool {
+    pub fn can_move_up(&self) -> bool {
         self.point
-            .is_first_index(self.line_index, self.terminal_height)
+            .can_move_up(self.line_index, self.terminal_height)
     }
 
-    pub fn is_last_line_index(&self) -> bool {
+    pub fn can_move_down(&self) -> bool {
         self.point
-            .is_last_index(self.line_index, self.terminal_height)
+            .can_move_down(self.line_index, self.terminal_height)
     }
 
     pub fn backward_commit(mut self, history: &'a History) -> Self {
-        if let Some(point) = history.backward(self.point) {
-            self.point = point;
-            self.line_index = 0; // TODO
+        if let Some(next_point) = history.backward(self.point) {
+            let index_pair = self.point.nearest_old_index_pair(self.line_index);
+            let line_index = next_point
+                .find_index_from_new_index(index_pair.partial_index())
+                .map(|index| index + index_pair.relative_index())
+                .unwrap_or(0);
+
+            self.point = next_point;
+            self.line_index = line_index;
         }
         self
     }
 
     pub fn forward_commit(mut self, history: &'a History) -> Self {
-        if let Some(point) = history.forward(self.point) {
-            self.point = point;
-            self.line_index = 0; // TODO
+        if let Some(next_point) = history.forward(self.point) {
+            let index_pair = self.point.nearest_new_index_pair(self.line_index);
+            let line_index = next_point
+                .find_index_from_old_index(index_pair.partial_index())
+                .map(|index| index + index_pair.relative_index())
+                .unwrap_or(0);
+
+            self.point = next_point;
+            self.line_index = line_index;
         }
         self
     }
 
     pub fn decrement_line_index(mut self) -> Self {
-        if !self.is_first_line_index() {
+        if self.can_move_up() {
             self.line_index -= 1;
         }
         self
     }
 
     pub fn increment_line_index(mut self) -> Self {
-        if !self.is_last_line_index() {
+        if self.can_move_down() {
             self.line_index += 1;
         }
         self
@@ -83,10 +95,6 @@ impl<'a> State<'a> {
 
     pub fn update_terminal_height(mut self, terminal_height: usize) -> Self {
         self.terminal_height = terminal_height;
-        self.line_index = self.line_index.clamp(
-            self.point.allowed_min_index(terminal_height),
-            self.point.allowed_max_index(terminal_height),
-        );
         self
     }
 }

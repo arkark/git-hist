@@ -1,4 +1,4 @@
-use crate::app::diff::{Diff, DiffLine};
+use crate::app::diff::{Diff, DiffLine, IndexPair};
 use git2::{Commit, Delta, Oid, Repository};
 use std::slice::Iter;
 
@@ -41,20 +41,28 @@ impl<'a> TurningPoint<'a> {
         self.diff.max_line_number_len()
     }
 
-    pub fn allowed_min_index(&self, terminal_height: usize) -> usize {
-        self.diff.allowed_min_index(terminal_height)
+    pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
+        self.diff.can_move_up(index, terminal_height)
     }
 
-    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
-        self.diff.allowed_max_index(terminal_height)
+    pub fn can_move_down(&self, index: usize, terminal_height: usize) -> bool {
+        self.diff.can_move_down(index, terminal_height)
     }
 
-    pub fn is_first_index(&self, index: usize, terminal_height: usize) -> bool {
-        self.diff.is_first_index(index, terminal_height)
+    pub fn nearest_old_index_pair(&self, index: usize) -> IndexPair {
+        self.diff.nearest_old_index_pair(index)
     }
 
-    pub fn is_last_index(&self, index: usize, terminal_height: usize) -> bool {
-        self.diff.is_last_index(index, terminal_height)
+    pub fn nearest_new_index_pair(&self, index: usize) -> IndexPair {
+        self.diff.nearest_new_index_pair(index)
+    }
+
+    pub fn find_index_from_old_index(&self, old_index: usize) -> Option<usize> {
+        self.diff.find_index_from_old_index(old_index)
+    }
+
+    pub fn find_index_from_new_index(&self, new_index: usize) -> Option<usize> {
+        self.diff.find_index_from_new_index(new_index)
     }
 }
 

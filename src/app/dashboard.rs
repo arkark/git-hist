@@ -94,8 +94,8 @@ impl<'a> Dashboard<'a> {
 
 fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let backward_symbol = if state.is_earliest_commit() { "" } else { "<<" };
-    let up_symbol = if state.is_first_line_index() { "" } else { "^" };
-    let down_symbol = if state.is_last_line_index() { "" } else { "v" };
+    let up_symbol = if state.can_move_up() { "^" } else { "" };
+    let down_symbol = if state.can_move_down() { "v" } else { "" };
 
     vec![
         text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
@@ -107,8 +107,8 @@ fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::
 
 fn get_right_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let forward_symbol = if state.is_latest_commit() { "  " } else { ">>" };
-    let up_symbol = if state.is_first_line_index() { "" } else { "^" };
-    let down_symbol = if state.is_last_line_index() { "" } else { "v" };
+    let up_symbol = if state.can_move_up() { "^" } else { "" };
+    let down_symbol = if state.can_move_down() { "v" } else { "" };
 
     vec![
         text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
