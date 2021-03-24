@@ -1,7 +1,9 @@
+use crate::app::dashboard::COMMIT_INFO_OUTER_HEIGHT;
 use git2::{Delta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
 use std::cmp;
+use std::convert::TryFrom;
 
 pub struct Diff<'a> {
     status: Delta,
@@ -50,10 +52,8 @@ impl<'a> Diff<'a> {
             .unwrap_or_default();
         TextDiff::from_lines(&old_file_text, &new_file_text)
             .iter_all_changes()
-            .enumerate()
-            .map(|(index, change)| {
+            .map(|change| {
                 DiffLine::new(
-                    index,
                     change.old_index(),
                     change.new_index(),
                     change.tag(),
@@ -88,11 +88,44 @@ impl<'a> Diff<'a> {
             .to_string()
             .len()
     }
+
+    pub fn allowed_min_index(&self, _terminal_height: usize) -> usize {
+        0
+    }
+
+    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
+        let terminal_height: isize = isize::try_from(terminal_height).unwrap();
+        let commit_info_outer_height: isize = isize::try_from(COMMIT_INFO_OUTER_HEIGHT).unwrap();
+        let diff_height: isize = isize::try_from(self.lines().len()).unwrap();
+
+        // TODO:
+        //   - option: beyond-last-line (default: false)
+        //     - true:  max(0, diff_height - 1)
+        //     - false: max(0, diff_height - (terminal_height - commit_info_outer_height))
+        usize::try_from(cmp::max(
+            0,
+            diff_height - (terminal_height - commit_info_outer_height),
+        ))
+        .unwrap()
+    }
+
+    pub fn is_first_index(&self, index: usize, terminal_height: usize) -> bool {
+        let lhs = index;
+        let rhs = self.allowed_min_index(terminal_height);
+        assert!(lhs >= rhs);
+        lhs == rhs
+    }
+
+    pub fn is_last_index(&self, index: usize, terminal_height: usize) -> bool {
+        let lhs = index;
+        let rhs = self.allowed_max_index(terminal_height);
+        assert!(lhs <= rhs);
+        lhs == rhs
+    }
 }
 
 #[derive(Debug)]
 pub struct DiffLine {
-    index: usize,
     old_index: Option<usize>,
     new_index: Option<usize>,
     tag: ChangeTag,
@@ -101,14 +134,12 @@ pub struct DiffLine {
 
 impl DiffLine {
     fn new(
-        index: usize,
         old_index: Option<usize>,
         new_index: Option<usize>,
         tag: ChangeTag,
         text: impl Into<String>,
     ) -> Self {
         Self {
-            index,
             old_index,
             new_index,
             tag,

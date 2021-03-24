@@ -33,12 +33,28 @@ impl<'a> TurningPoint<'a> {
         self.diff.status()
     }
 
+    pub fn iter_diff_lines(&self) -> Iter<'_, DiffLine> {
+        self.diff.lines().iter()
+    }
+
     pub fn max_line_number_len(&self) -> usize {
         self.diff.max_line_number_len()
     }
 
-    pub fn iter_diff_lines(&self) -> Iter<'_, DiffLine> {
-        self.diff.lines().iter()
+    pub fn allowed_min_index(&self, terminal_height: usize) -> usize {
+        self.diff.allowed_min_index(terminal_height)
+    }
+
+    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
+        self.diff.allowed_max_index(terminal_height)
+    }
+
+    pub fn is_first_index(&self, index: usize, terminal_height: usize) -> bool {
+        self.diff.is_first_index(index, terminal_height)
+    }
+
+    pub fn is_last_index(&self, index: usize, terminal_height: usize) -> bool {
+        self.diff.is_last_index(index, terminal_height)
     }
 }
 

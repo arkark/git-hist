@@ -7,6 +7,9 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use tui::{layout, text, widgets};
 
+pub const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
+pub const COMMIT_INFO_OUTER_HEIGHT: u16 = COMMIT_INFO_INNER_HEIGHT + 2;
+
 #[derive(Debug)]
 pub struct Dashboard<'a> {
     commit_info_title: text::Spans<'a>,
@@ -39,7 +42,7 @@ impl<'a> Dashboard<'a> {
                 .direction(layout::Direction::Vertical)
                 .constraints(
                     [
-                        layout::Constraint::Length(2 + 2),
+                        layout::Constraint::Length(COMMIT_INFO_OUTER_HEIGHT),
                         layout::Constraint::Min(0),
                     ]
                     .as_ref(),
@@ -273,7 +276,11 @@ fn get_commit_info_text<'a>(
 fn get_diff_text<'a>(current_state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
     let max_line_number_len = current_state.point().max_line_number_len();
-    for line in current_state.point().iter_diff_lines() {
+    for line in current_state
+        .point()
+        .iter_diff_lines()
+        .skip(current_state.line_index())
+    {
         let old_line_number = format!(
             "{:>1$}",
             if let Some(number) = line.old_line_number() {

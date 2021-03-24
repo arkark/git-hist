@@ -21,7 +21,7 @@ pub fn run(args: Args) -> Result<()> {
     terminal::initialize()?;
 
     let mut terminal = Terminal::new()?;
-    let mut current_state = State::from(&history);
+    let mut current_state = State::new(&history, &terminal);
     let dashboard = Dashboard::new(&current_state, &repo)?;
     dashboard.draw(&mut terminal)?;
 

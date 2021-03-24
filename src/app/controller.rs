@@ -19,45 +19,26 @@ pub fn poll_next_event<'a>(state: State<'a>, history: &'a History) -> Result<Opt
                 modifiers: _,
             } => Ok(None),
             KeyEvent {
-                code: KeyCode::Up,
+                code: KeyCode::Left,
                 modifiers: _,
-            } => Ok(Some(state)),
-            KeyEvent {
-                code: KeyCode::Down,
-                modifiers: _,
-            } => Ok(Some(state)),
+            } => Ok(Some(state.backward_commit(history))),
             KeyEvent {
                 code: KeyCode::Right,
                 modifiers: _,
-            } => Ok(Some(if let Some(point) = history.forward(state.point()) {
-                let is_latest_commit = history.forward(point).is_none();
-                let is_earliest_commit = history.backward(point).is_none();
-                State::new(
-                    point,
-                    state.line_index(),
-                    is_latest_commit,
-                    is_earliest_commit,
-                )
-            } else {
-                state
-            })),
+            } => Ok(Some(state.forward_commit(history))),
             KeyEvent {
-                code: KeyCode::Left,
+                code: KeyCode::Up,
                 modifiers: _,
-            } => Ok(Some(if let Some(point) = history.backward(state.point()) {
-                let is_latest_commit = history.forward(point).is_none();
-                let is_earliest_commit = history.backward(point).is_none();
-                State::new(
-                    point,
-                    state.line_index(),
-                    is_latest_commit,
-                    is_earliest_commit,
-                )
-            } else {
-                state
-            })),
+            } => Ok(Some(state.decrement_line_index())),
+            KeyEvent {
+                code: KeyCode::Down,
+                modifiers: _,
+            } => Ok(Some(state.increment_line_index())),
             _ => Ok(Some(state)),
         },
+        Event::Resize(_width, height) => {
+            Ok(Some(state.update_terminal_height(usize::from(height))))
+        }
         _ => Ok(Some(state)),
     }
 }

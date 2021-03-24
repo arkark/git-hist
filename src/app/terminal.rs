@@ -38,4 +38,8 @@ impl Terminal {
         self.terminal.draw(f)?;
         Ok(())
     }
+
+    pub fn height(&self) -> usize {
+        self.terminal.size().unwrap().height.into()
+    }
 }
