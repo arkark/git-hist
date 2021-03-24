@@ -102,6 +102,7 @@ impl<'a> Diff<'a> {
 
         // TODO:
         //   - option: beyond-last-line (default: false)
+        //     - whether the diff view will scroll beyond the last line
         //     - true:  max(0, diff_height - 1)
         //     - false: max(0, diff_height - (terminal_height - commit_info_outer_height))
         usize::try_from(cmp::max(
