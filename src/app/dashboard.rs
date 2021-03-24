@@ -4,11 +4,10 @@ use anyhow::Result;
 use chrono::TimeZone;
 use git2::{Delta, Reference, Repository};
 use itertools::Itertools;
-use similar::{ChangeTag, TextDiff};
-use std::cmp;
 use std::collections::HashMap;
 use tui::{layout, text, widgets};
 
+#[derive(Debug)]
 pub struct Dashboard<'a> {
     commit_info_title: text::Spans<'a>,
     commit_info_text: Vec<text::Spans<'a>>,
@@ -19,11 +18,11 @@ pub struct Dashboard<'a> {
 
 impl<'a> Dashboard<'a> {
     pub fn new(current_state: &'a State, repo: &'a Repository) -> Result<Self> {
-        let left_navi_text = get_left_navi_text(&current_state, &repo)?;
-        let right_navi_text = get_right_navi_text(&current_state, &repo)?;
+        let left_navi_text = get_left_navi_text(&current_state, &repo);
+        let right_navi_text = get_right_navi_text(&current_state, &repo);
         let commit_info_title = get_commit_info_title(&current_state, &repo)?;
-        let commit_info_text = get_commit_info_text(&current_state, &repo)?;
-        let diff_text = get_diff_text(&current_state, &repo)?;
+        let commit_info_text = get_commit_info_text(&current_state, &repo);
+        let diff_text = get_diff_text(&current_state, &repo);
 
         Ok(Self {
             commit_info_title,
@@ -90,39 +89,36 @@ impl<'a> Dashboard<'a> {
     }
 }
 
-fn get_left_navi_text<'a>(
-    current_state: &'a State,
-    _repo: &'a Repository,
-) -> Result<Vec<text::Spans<'a>>> {
+fn get_left_navi_text<'a>(current_state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let backward_symbol = if current_state.is_earliest_commit() {
         " "
     } else {
         "<<"
     };
 
-    Ok(vec![
+    vec![
         text::Spans::from(""),
         text::Spans::from(backward_symbol),
         text::Spans::from(backward_symbol),
         text::Spans::from(""),
-    ])
+    ]
 }
 
 fn get_right_navi_text<'a>(
     current_state: &'a State,
     _repo: &'a Repository,
-) -> Result<Vec<text::Spans<'a>>> {
+) -> Vec<text::Spans<'a>> {
     let forward_symbol = if current_state.is_latest_commit() {
         "  "
     } else {
         ">>"
     };
-    Ok(vec![
+    vec![
         text::Spans::from(""),
         text::Spans::from(forward_symbol),
         text::Spans::from(forward_symbol),
         text::Spans::from(""),
-    ])
+    ]
 }
 
 fn get_commit_info_title<'a>(
@@ -159,7 +155,7 @@ fn get_commit_info_title<'a>(
     let branch_names = references_groups
         .get("branch")
         .unwrap_or(&empty_vec)
-        .into_iter()
+        .iter()
         .filter_map(|r| {
             r.shorthand().map(|name| {
                 let head_prefix = if r.name() == head.name() {
@@ -174,13 +170,13 @@ fn get_commit_info_title<'a>(
     let remote_names = references_groups
         .get("remote")
         .unwrap_or(&empty_vec)
-        .into_iter()
-        .filter_map(|r| r.shorthand().map(|name| format!("{}", name)))
+        .iter()
+        .filter_map(|r| r.shorthand().map(String::from))
         .collect::<Vec<_>>();
     let tag_names = references_groups
         .get("tag")
         .unwrap_or(&empty_vec)
-        .into_iter()
+        .iter()
         .filter_map(|r| r.shorthand().map(|name| format!("tag: {}", name)))
         .collect::<Vec<_>>();
 
@@ -206,10 +202,10 @@ fn get_commit_info_title<'a>(
     commit_info_title.push(text::Span::raw(" "));
     commit_info_title.push(text::Span::raw(commit_date));
     commit_info_title.push(text::Span::raw(" "));
-    if head_names.len() > 0
-        || branch_names.len() > 0
-        || remote_names.len() > 0
-        || tag_names.len() > 0
+    if !head_names.is_empty()
+        || !branch_names.is_empty()
+        || !remote_names.is_empty()
+        || !tag_names.is_empty()
     {
         commit_info_title.push(text::Span::raw("("));
         for name in head_names {
@@ -242,7 +238,7 @@ fn get_commit_info_title<'a>(
 fn get_commit_info_text<'a>(
     current_state: &'a State,
     repo: &'a Repository,
-) -> Result<Vec<text::Spans<'a>>> {
+) -> Vec<text::Spans<'a>> {
     let commit = current_state.point().get_commit(&repo);
 
     let commit_summary = String::from(commit.summary().unwrap_or_default());
@@ -271,42 +267,17 @@ fn get_commit_info_text<'a>(
     };
     let change_status = text::Spans(change_status);
 
-    Ok(vec![commit_summary, change_status])
+    vec![commit_summary, change_status]
 }
 
-fn get_diff_text<'a>(
-    current_state: &'a State,
-    repo: &'a Repository,
-) -> Result<Vec<text::Spans<'a>>> {
-    let old_file_text = current_state
-        .point()
-        .get_old_blob(repo)
-        .map(|blob| blob.content().to_vec())
-        .unwrap_or_default();
-    let new_file_text = current_state
-        .point()
-        .get_new_blob(repo)
-        .map(|blob| blob.content().to_vec())
-        .unwrap_or_default();
-
+fn get_diff_text<'a>(current_state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
-    let text_diff = TextDiff::from_lines(&old_file_text, &new_file_text);
-    let max_line_number_len = text_diff
-        .iter_all_changes()
-        .filter_map(|change| {
-            cmp::max(change.old_index(), change.new_index()).map(|x| {
-                // 0-indexed to 1-indexed
-                x + 1
-            })
-        })
-        .fold(0, |acc, number| cmp::max(acc, number))
-        .to_string()
-        .len();
-    for change in text_diff.iter_all_changes() {
+    let max_line_number_len = current_state.point().max_line_number_len();
+    for line in current_state.point().iter_diff_lines() {
         let old_line_number = format!(
             "{:>1$}",
-            if let Some(index) = change.old_index() {
-                (index + 1).to_string()
+            if let Some(number) = line.old_line_number() {
+                number.to_string()
             } else {
                 String::new()
             },
@@ -314,18 +285,14 @@ fn get_diff_text<'a>(
         );
         let new_line_number = format!(
             "{:>1$}",
-            if let Some(index) = change.new_index() {
-                (index + 1).to_string()
+            if let Some(number) = line.new_line_number() {
+                number.to_string()
             } else {
                 String::new()
             },
             max_line_number_len,
         );
-        let sign = match change.tag() {
-            ChangeTag::Delete => "-",
-            ChangeTag::Insert => "+",
-            ChangeTag::Equal => " ",
-        };
+        let sign = line.sign();
         diff_text.push(text::Spans::from(vec![
             text::Span::raw(old_line_number),
             text::Span::raw(" "),
@@ -333,9 +300,9 @@ fn get_diff_text<'a>(
             text::Span::raw("|"),
             text::Span::raw(sign),
             text::Span::raw(" "),
-            text::Span::raw(String::from(change.to_string_lossy())),
+            text::Span::raw(line.text()),
         ]))
     }
 
-    Ok(diff_text)
+    diff_text
 }

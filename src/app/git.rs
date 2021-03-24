@@ -1,3 +1,4 @@
+use crate::app::diff::Diff;
 use crate::app::history::{History, TurningPoint};
 use anyhow::{anyhow, Context, Result};
 use git2::{DiffFindOptions, ObjectType, Repository};
@@ -8,14 +9,15 @@ pub fn get_repository() -> Result<Repository> {
     let repo = Repository::discover(env::current_dir()?)
         .context("Faild to open a git repository for the current directory")?;
     if repo.is_bare() {
-        Err(anyhow!("git-hist dose not support a bare repository"))?;
+        return Err(anyhow!("git-hist dose not support a bare repository"));
     }
     Ok(repo)
 }
 
-pub fn get_history<P: AsRef<path::Path>>(file_path: P) -> Result<History> {
-    let repo = get_repository()?;
-
+pub fn get_history<P: AsRef<path::Path>>(
+    file_path: P,
+    repo: &'_ Repository,
+) -> Result<History<'_>> {
     let file_path_from_repository = env::current_dir()
         .unwrap()
         .join(&file_path)
@@ -63,15 +65,16 @@ pub fn get_history<P: AsRef<path::Path>>(file_path: P) -> Result<History> {
         let new_tree = commit.tree().ok();
         assert!(new_tree.is_some());
 
-        let mut diff = repo
+        let mut git_diff = repo
             .diff_tree_to_tree(old_tree.as_ref(), new_tree.as_ref(), None)
             .unwrap();
 
         // detect file renames
-        diff.find_similar(Some(DiffFindOptions::new().renames(true)))
+        git_diff
+            .find_similar(Some(DiffFindOptions::new().renames(true)))
             .unwrap();
 
-        let delta = diff.deltas().find(|delta| {
+        let delta = git_diff.deltas().find(|delta| {
             delta.new_file().id() == file_oid
                 && delta
                     .new_file()
@@ -85,14 +88,15 @@ pub fn get_history<P: AsRef<path::Path>>(file_path: P) -> Result<History> {
         }
 
         delta.map(|delta| {
-            TurningPoint::new(
-                commit.id(),
+            let diff = Diff::new(
+                delta.status(),
                 delta.old_file().id(),
                 delta.new_file().id(),
                 delta.old_file().path().map(|p| p.to_string_lossy()),
                 delta.new_file().path().map(|p| p.to_string_lossy()),
-                delta.status(),
-            )
+                repo,
+            );
+            TurningPoint::new(commit.id(), diff)
         })
     }));
 

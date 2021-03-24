@@ -1,8 +1,7 @@
 use super::history::{History, TurningPoint};
 
-#[derive(Debug)]
 pub struct State<'a> {
-    point: &'a TurningPoint,
+    point: &'a TurningPoint<'a>,
     line_index: usize,
     is_latest_commit: bool,
     is_earliest_commit: bool,
@@ -40,7 +39,7 @@ impl<'a> State<'a> {
     }
 }
 
-impl<'a> From<&'a History> for State<'a> {
+impl<'a> From<&'a History<'a>> for State<'a> {
     fn from(history: &'a History) -> State<'a> {
         let point = history.latest().unwrap();
         let line_index = 0;

@@ -1,32 +1,18 @@
-use git2::{Blob, Commit, Delta, Oid, Repository};
+use crate::app::diff::{Diff, DiffLine};
+use git2::{Commit, Delta, Oid, Repository};
+use std::slice::Iter;
 
-#[derive(Debug)]
-pub struct TurningPoint {
+pub struct TurningPoint<'a> {
     commit_oid: Oid,
-    old_file_oid: Oid,
-    new_file_oid: Oid,
-    old_path: Option<String>,
-    new_path: Option<String>,
-    diff_status: Delta,
+    diff: Diff<'a>,
     index_of_history: Option<usize>,
 }
 
-impl TurningPoint {
-    pub fn new<S: Into<String>>(
-        commit_oid: Oid,
-        old_file_oid: Oid,
-        new_file_oid: Oid,
-        old_path: Option<S>,
-        new_path: Option<S>,
-        diff_status: Delta,
-    ) -> Self {
+impl<'a> TurningPoint<'a> {
+    pub fn new(commit_oid: Oid, diff: Diff<'a>) -> Self {
         Self {
             commit_oid,
-            old_file_oid,
-            new_file_oid,
-            old_path: old_path.map(|path| path.into()),
-            new_path: new_path.map(|path| path.into()),
-            diff_status,
+            diff,
             index_of_history: None,
         }
     }
@@ -35,34 +21,33 @@ impl TurningPoint {
         repo.find_commit(self.commit_oid).unwrap()
     }
 
-    pub fn get_old_blob<'repo>(&self, repo: &'repo Repository) -> Option<Blob<'repo>> {
-        repo.find_blob(self.old_file_oid).ok()
+    pub fn old_path(&self) -> Option<&str> {
+        self.diff.old_path()
     }
 
-    pub fn get_new_blob<'repo>(&self, repo: &'repo Repository) -> Option<Blob<'repo>> {
-        repo.find_blob(self.new_file_oid).ok()
-    }
-
-    pub fn old_path(&self) -> Option<&String> {
-        self.old_path.as_ref()
-    }
-
-    pub fn new_path(&self) -> Option<&String> {
-        self.new_path.as_ref()
+    pub fn new_path(&self) -> Option<&str> {
+        self.diff.new_path()
     }
 
     pub fn diff_status(&self) -> Delta {
-        self.diff_status
+        self.diff.status()
+    }
+
+    pub fn max_line_number_len(&self) -> usize {
+        self.diff.max_line_number_len()
+    }
+
+    pub fn iter_diff_lines(&self) -> Iter<'_, DiffLine> {
+        self.diff.lines().iter()
     }
 }
 
-#[derive(Debug)]
-pub struct History {
-    points: Vec<TurningPoint>,
+pub struct History<'a> {
+    points: Vec<TurningPoint<'a>>,
 }
 
-impl History {
-    pub fn new<I: Iterator<Item = TurningPoint>>(points: I) -> Self {
+impl<'a> History<'a> {
+    pub fn new<I: Iterator<Item = TurningPoint<'a>>>(points: I) -> Self {
         History {
             points: points
                 .enumerate()
