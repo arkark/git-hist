@@ -10,19 +10,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, nightly]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
+          toolchain: stable
+      - name: Run tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
 
   fmt:
     name: Rustfmt
@@ -33,9 +31,9 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          override: true
           components: rustfmt
-      - uses: actions-rs/cargo@v1
+      - name: Run rustfmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check --verbose
@@ -49,9 +47,9 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          override: true
           components: clippy
-      - uses: actions-rs/cargo@v1
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --verbose -- -D warnings
+          args: -- -D warnings
