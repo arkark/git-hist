@@ -1,3 +1,4 @@
+use crate::app::dashboard::Dashboard;
 use crate::app::history::{History, TurningPoint};
 use crate::app::terminal::Terminal;
 use std::cmp;
@@ -116,17 +117,58 @@ impl<'a> State<'a> {
         self
     }
 
-    pub fn decrement_line_index(mut self) -> Self {
+    pub fn move_line_up(mut self) -> Self {
         if self.can_move_up() {
             self.line_index -= 1;
         }
         self
     }
 
-    pub fn increment_line_index(mut self) -> Self {
+    pub fn move_line_down(mut self) -> Self {
         if self.can_move_down() {
             self.line_index += 1;
         }
+        self
+    }
+
+    pub fn move_line_up_for_page(mut self) -> Self {
+        let diff_height = Dashboard::diff_height(self.terminal_height);
+        self.line_index = usize::try_from(cmp::min(
+            isize::try_from(self.line_index).unwrap(),
+            cmp::max(
+                isize::try_from(self.line_index).unwrap() - isize::try_from(diff_height).unwrap(),
+                isize::try_from(self.point.allowed_min_index(self.terminal_height)).unwrap(),
+            ),
+        ))
+        .unwrap();
+        self
+    }
+
+    pub fn move_line_down_for_page(mut self) -> Self {
+        let diff_height = Dashboard::diff_height(self.terminal_height);
+        self.line_index = cmp::max(
+            self.line_index,
+            cmp::min(
+                self.line_index + diff_height,
+                self.point.allowed_max_index(self.terminal_height),
+            ),
+        );
+        self
+    }
+
+    pub fn move_line_to_top(mut self) -> Self {
+        self.line_index = cmp::min(
+            self.line_index,
+            self.point.allowed_min_index(self.terminal_height),
+        );
+        self
+    }
+
+    pub fn move_line_to_bottom(mut self) -> Self {
+        self.line_index = cmp::max(
+            self.line_index,
+            self.point.allowed_max_index(self.terminal_height),
+        );
         self
     }
 

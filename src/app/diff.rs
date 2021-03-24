@@ -1,4 +1,4 @@
-use crate::app::dashboard::COMMIT_INFO_OUTER_HEIGHT;
+use crate::app::dashboard::Dashboard;
 use git2::{Delta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
@@ -97,20 +97,15 @@ impl<'a> Diff<'a> {
     }
 
     pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
-        let terminal_height: isize = isize::try_from(terminal_height).unwrap();
-        let commit_info_outer_height: isize = isize::try_from(COMMIT_INFO_OUTER_HEIGHT).unwrap();
-        let diff_height: isize = isize::try_from(self.lines().len()).unwrap();
+        let diff_length = isize::try_from(self.lines().len()).unwrap();
+        let diff_height = isize::try_from(Dashboard::diff_height(terminal_height)).unwrap();
 
         // TODO:
         //   - option: beyond-last-line (default: false)
         //     - whether the diff view will scroll beyond the last line
-        //     - true:  max(0, diff_height - 1)
-        //     - false: max(0, diff_height - (terminal_height - commit_info_outer_height))
-        usize::try_from(cmp::max(
-            0,
-            diff_height - (terminal_height - commit_info_outer_height),
-        ))
-        .unwrap()
+        //     - true:  diff_length - 1
+        //     - false: diff_length - diff_height
+        usize::try_from((diff_length - diff_height).clamp(0, cmp::max(0, diff_length - 1))).unwrap()
     }
 
     pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {

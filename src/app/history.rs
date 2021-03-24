@@ -41,6 +41,14 @@ impl<'a> TurningPoint<'a> {
         self.diff.max_line_number_len()
     }
 
+    pub fn allowed_min_index(&self, terminal_height: usize) -> usize {
+        self.diff.allowed_min_index(terminal_height)
+    }
+
+    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
+        self.diff.allowed_max_index(terminal_height)
+    }
+
     pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
         self.diff.can_move_up(index, terminal_height)
     }

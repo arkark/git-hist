@@ -4,7 +4,9 @@ use anyhow::Result;
 use chrono::TimeZone;
 use git2::{Delta, Reference, Repository};
 use itertools::Itertools;
+use std::cmp;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use tui::{layout, text, widgets};
 
 pub const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
@@ -89,6 +91,12 @@ impl<'a> Dashboard<'a> {
         })?;
 
         Ok(())
+    }
+
+    pub fn diff_height(terminal_height: usize) -> usize {
+        let terminal_height: isize = isize::try_from(terminal_height).unwrap();
+        let commit_info_outer_height: isize = isize::try_from(COMMIT_INFO_OUTER_HEIGHT).unwrap();
+        usize::try_from(cmp::max(0, terminal_height - commit_info_outer_height)).unwrap()
     }
 }
 
