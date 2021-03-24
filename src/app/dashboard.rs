@@ -106,7 +106,7 @@ fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::
 }
 
 fn get_right_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
-    let forward_symbol = if state.is_latest_commit() { "  " } else { ">>" };
+    let forward_symbol = if state.is_latest_commit() { "" } else { ">>" };
     let up_symbol = if state.can_move_up() { "^" } else { "" };
     let down_symbol = if state.can_move_down() { "v" } else { "" };
 

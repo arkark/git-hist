@@ -76,10 +76,14 @@ impl<'a> State<'a> {
                 .unwrap_or(0);
             let max_line_number_len =
                 cmp::max(self.max_line_number_len, next_point.max_line_number_len());
+            let is_latest_commit = history.forward(next_point).is_none();
+            let is_earliest_commit = history.backward(next_point).is_none();
 
             self.point = next_point;
             self.line_index = line_index;
             self.max_line_number_len = max_line_number_len;
+            self.is_latest_commit = is_latest_commit;
+            self.is_earliest_commit = is_earliest_commit;
         }
         self
     }
@@ -100,10 +104,14 @@ impl<'a> State<'a> {
                 .unwrap_or(0);
             let max_line_number_len =
                 cmp::max(self.max_line_number_len, next_point.max_line_number_len());
+            let is_latest_commit = history.forward(next_point).is_none();
+            let is_earliest_commit = history.backward(next_point).is_none();
 
             self.point = next_point;
             self.line_index = line_index;
             self.max_line_number_len = max_line_number_len;
+            self.is_latest_commit = is_latest_commit;
+            self.is_earliest_commit = is_earliest_commit;
         }
         self
     }
