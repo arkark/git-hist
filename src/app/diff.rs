@@ -40,6 +40,7 @@ impl<'a> Diff<'a> {
     }
 
     fn calc_lines(&self) -> Vec<DiffLine> {
+        // TODO: show "binary file" if the file is a binary file
         let old_file_text = self
             .repo
             .find_blob(self.old_file_oid)
