@@ -100,12 +100,16 @@ impl<'a> Diff<'a> {
         let diff_length = isize::try_from(self.lines().len()).unwrap();
         let diff_height = isize::try_from(Dashboard::diff_height(terminal_height)).unwrap();
 
-        // TODO:
-        //   - option: beyond-last-line (default: false)
-        //     - whether the diff view will scroll beyond the last line
-        //     - true:  diff_length - 1
-        //     - false: diff_length - diff_height
-        usize::try_from((diff_length - diff_height).clamp(0, cmp::max(0, diff_length - 1))).unwrap()
+        if diff_length == 0 {
+            0
+        } else {
+            // TODO:
+            //   - option: beyond-last-line (default: false)
+            //     - whether the diff view will scroll beyond the last line
+            //     - true:  diff_length - 1
+            //     - false: diff_length - diff_height
+            usize::try_from((diff_length - diff_height).clamp(0, diff_length - 1)).unwrap()
+        }
     }
 
     pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
