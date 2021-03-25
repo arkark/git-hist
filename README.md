@@ -12,3 +12,9 @@ A CLI to browse the history of files in any git repository **on a terminal**. Th
 ```sh
 git hist <file>
 ```
+
+- `Left`/`Right`: Go to a previous/next commit.
+- `Up`/`Down`: Scroll up/down.
+- `PageUp`/`PageDown`: Scroll page up/down.
+- `Home`/`End`: Scroll to the top/bottom.
+- `q`/`Ctrl+c`/`Ctrl+d`: Exit.

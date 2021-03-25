@@ -29,27 +29,27 @@ pub fn poll_next_event<'a>(state: State<'a>, history: &'a History) -> Result<Opt
             KeyEvent {
                 code: KeyCode::Up,
                 modifiers: _,
-            } => Ok(Some(state.move_line_up())),
+            } => Ok(Some(state.scroll_line_up())),
             KeyEvent {
                 code: KeyCode::Down,
                 modifiers: _,
-            } => Ok(Some(state.move_line_down())),
+            } => Ok(Some(state.scroll_line_down())),
             KeyEvent {
                 code: KeyCode::PageUp,
                 modifiers: _,
-            } => Ok(Some(state.move_line_up_for_page())),
+            } => Ok(Some(state.scroll_page_up())),
             KeyEvent {
                 code: KeyCode::PageDown,
                 modifiers: _,
-            } => Ok(Some(state.move_line_down_for_page())),
+            } => Ok(Some(state.scroll_page_down())),
             KeyEvent {
                 code: KeyCode::Home,
                 modifiers: _,
-            } => Ok(Some(state.move_line_to_top())),
+            } => Ok(Some(state.scroll_to_top())),
             KeyEvent {
                 code: KeyCode::End,
                 modifiers: _,
-            } => Ok(Some(state.move_line_to_bottom())),
+            } => Ok(Some(state.scroll_to_bottom())),
             _ => Ok(Some(state)),
         },
         Event::Resize(_width, height) => {

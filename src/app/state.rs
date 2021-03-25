@@ -125,21 +125,21 @@ impl<'a> State<'a> {
         self
     }
 
-    pub fn move_line_up(mut self) -> Self {
+    pub fn scroll_line_up(mut self) -> Self {
         if self.can_move_up() {
             self.line_index -= 1;
         }
         self
     }
 
-    pub fn move_line_down(mut self) -> Self {
+    pub fn scroll_line_down(mut self) -> Self {
         if self.can_move_down() {
             self.line_index += 1;
         }
         self
     }
 
-    pub fn move_line_up_for_page(mut self) -> Self {
+    pub fn scroll_page_up(mut self) -> Self {
         let diff_height = Dashboard::diff_height(self.terminal_height);
         self.line_index = usize::try_from(cmp::min(
             isize::try_from(self.line_index).unwrap(),
@@ -152,7 +152,7 @@ impl<'a> State<'a> {
         self
     }
 
-    pub fn move_line_down_for_page(mut self) -> Self {
+    pub fn scroll_page_down(mut self) -> Self {
         let diff_height = Dashboard::diff_height(self.terminal_height);
         self.line_index = cmp::max(
             self.line_index,
@@ -164,7 +164,7 @@ impl<'a> State<'a> {
         self
     }
 
-    pub fn move_line_to_top(mut self) -> Self {
+    pub fn scroll_to_top(mut self) -> Self {
         self.line_index = cmp::min(
             self.line_index,
             self.point.diff().allowed_min_index(self.terminal_height),
@@ -172,7 +172,7 @@ impl<'a> State<'a> {
         self
     }
 
-    pub fn move_line_to_bottom(mut self) -> Self {
+    pub fn scroll_to_bottom(mut self) -> Self {
         self.line_index = cmp::max(
             self.line_index,
             self.point.diff().allowed_max_index(self.terminal_height),
