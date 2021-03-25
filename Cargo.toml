@@ -16,7 +16,7 @@ anyhow = "1.0"
 once_cell = "1.7"
 clap = "3.0.0-beta.2"
 git2 = "0.13"
-similar = { version ="1.3", features = ["bytes"] }
+similar = { version ="1.3", features = ["bytes", "inline"] }
 crossterm = "0.19"
 tui = { version = "0.14", default-features = false, features = ["crossterm"] }
 

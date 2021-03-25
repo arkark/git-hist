@@ -292,15 +292,27 @@ fn get_diff_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans
             max_line_number_len,
         );
         let sign = line.sign();
-        diff_text.push(text::Spans::from(vec![
+        let style = line.style();
+
+        let mut spans = vec![
             text::Span::raw(old_line_number),
             text::Span::raw(" "),
             text::Span::raw(new_line_number),
-            text::Span::raw("|"),
-            text::Span::raw(sign),
-            text::Span::raw(" "),
-            text::Span::raw(line.text()),
-        ]))
+            text::Span::raw(" |"),
+            text::Span::styled(sign, style),
+            text::Span::styled(" ", style),
+        ];
+        for part in line.parts().iter() {
+            // TODO:
+            //   - option: --emphasize-diff (default: false)
+            let _style = part.emphasize(style); // if true
+            let style = style; // if false
+            spans.push(text::Span::styled(part.text(), style));
+        }
+
+        let spans = text::Spans::from(spans);
+
+        diff_text.push(spans);
     }
 
     diff_text

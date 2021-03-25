@@ -2,8 +2,9 @@ use crate::app::dashboard::Dashboard;
 use git2::{Delta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
-use std::cmp;
 use std::convert::TryFrom;
+use std::{cmp, ops::Deref};
+use tui::style::{Color, Style};
 
 pub struct Diff<'a> {
     status: Delta,
@@ -51,17 +52,24 @@ impl<'a> Diff<'a> {
             .find_blob(self.new_file_oid)
             .map(|blob| blob.content().to_vec())
             .unwrap_or_default();
-        TextDiff::from_lines(&old_file_text, &new_file_text)
-            .iter_all_changes()
+        let text_diff = TextDiff::from_lines(&old_file_text, &new_file_text);
+        text_diff
+            .ops()
+            .iter()
+            .map(|op| {
+                text_diff.iter_inline_changes(op).map(|change| {
+                    let parts = change
+                        .iter_strings_lossy()
+                        .map(|(emphasized, text)| DiffLinePart::new(text, emphasized))
+                        .collect();
+                    DiffLine::new(change.old_index(), change.new_index(), change.tag(), parts)
+                })
+            })
+            .flatten()
             .enumerate()
-            .map(|(index, change)| {
-                DiffLine::new(
-                    index,
-                    change.old_index(),
-                    change.new_index(),
-                    change.tag(),
-                    change.to_string_lossy(),
-                )
+            .map(|(index, mut line)| {
+                line.index = index;
+                line
             })
             .collect::<Vec<_>>()
     }
@@ -197,23 +205,22 @@ pub struct DiffLine {
     old_index: Option<usize>,
     new_index: Option<usize>,
     tag: ChangeTag,
-    text: String,
+    parts: Vec<DiffLinePart>,
 }
 
 impl DiffLine {
     fn new(
-        index: usize,
         old_index: Option<usize>,
         new_index: Option<usize>,
         tag: ChangeTag,
-        text: impl Into<String>,
+        parts: Vec<DiffLinePart>,
     ) -> Self {
         Self {
-            index,
+            index: 0,
             old_index,
             new_index,
             tag,
-            text: text.into(),
+            parts,
         }
     }
 
@@ -233,8 +240,43 @@ impl DiffLine {
         }
     }
 
+    pub fn style(&self) -> Style {
+        match self.tag {
+            ChangeTag::Delete => Style::default().fg(Color::Red),
+            ChangeTag::Insert => Style::default().fg(Color::Green),
+            ChangeTag::Equal => Style::default(),
+        }
+    }
+
+    pub fn parts(&self) -> &Vec<DiffLinePart> {
+        &self.parts
+    }
+}
+
+#[derive(Debug)]
+pub struct DiffLinePart {
+    text: String,
+    emphasized: bool,
+}
+
+impl DiffLinePart {
+    pub fn new(text: impl Into<String>, emphasized: bool) -> Self {
+        Self {
+            text: text.into(),
+            emphasized,
+        }
+    }
+
     pub fn text(&self) -> &str {
-        self.text.as_str()
+        self.text.deref()
+    }
+
+    pub fn emphasize(&self, style: Style) -> Style {
+        if self.emphasized {
+            style.bg(Color::DarkGray)
+        } else {
+            style
+        }
     }
 }
 
