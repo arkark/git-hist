@@ -97,7 +97,11 @@ impl<'a> Dashboard<'a> {
 }
 
 fn get_left_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let backward_symbol = if state.is_earliest_commit() { "" } else { "<<" };
+    let backward_symbol = if state.point().is_earliest() {
+        ""
+    } else {
+        "<<"
+    };
     let up_symbol = if state.can_move_up() { "^" } else { "" };
     let down_symbol = if state.can_move_down() { "v" } else { "" };
 
@@ -110,7 +114,7 @@ fn get_left_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
 }
 
 fn get_right_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let forward_symbol = if state.is_latest_commit() { "" } else { ">>" };
+    let forward_symbol = if state.point().is_latest() { "" } else { ">>" };
     let up_symbol = if state.can_move_up() { "^" } else { "" };
     let down_symbol = if state.can_move_down() { "v" } else { "" };
 

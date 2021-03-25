@@ -4,6 +4,8 @@ use crate::app::diff::Diff;
 pub struct TurningPoint<'a> {
     commit: Commit<'a>,
     diff: Diff<'a>,
+    is_latest: Option<bool>,
+    is_earliest: Option<bool>,
     index_of_history: Option<usize>,
 }
 
@@ -12,8 +14,18 @@ impl<'a> TurningPoint<'a> {
         Self {
             commit,
             diff,
+            is_latest: None,
+            is_earliest: None,
             index_of_history: None,
         }
+    }
+
+    pub fn is_latest(&self) -> bool {
+        self.is_latest.unwrap()
+    }
+
+    pub fn is_earliest(&self) -> bool {
+        self.is_earliest.unwrap()
     }
 
     pub fn commit(&self) -> &Commit {
@@ -31,15 +43,21 @@ pub struct History<'a> {
 
 impl<'a> History<'a> {
     pub fn new<I: Iterator<Item = TurningPoint<'a>>>(points: I) -> Self {
-        History {
-            points: points
-                .enumerate()
-                .map(|(i, mut p)| {
-                    p.index_of_history = Some(i);
-                    p
-                })
-                .collect::<Vec<_>>(),
+        let mut points = points
+            .enumerate()
+            .map(|(i, mut p)| {
+                p.index_of_history = Some(i);
+                p
+            })
+            .collect::<Vec<_>>();
+        assert!(!points.is_empty());
+
+        let len = points.len();
+        for point in points.iter_mut() {
+            point.is_latest = Some(point.index_of_history.unwrap() == 0);
+            point.is_earliest = Some(point.index_of_history.unwrap() + 1 == len);
         }
+        History { points }
     }
 
     pub fn latest(&self) -> Option<&TurningPoint> {
