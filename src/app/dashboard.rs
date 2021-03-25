@@ -150,37 +150,39 @@ fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
         .to_string();
 
     let mut commit_info_title = vec![];
-    commit_info_title.push(text::Span::raw(" "));
-    commit_info_title.push(text::Span::raw("Commit:"));
-    commit_info_title.push(text::Span::raw(" "));
-    commit_info_title.push(text::Span::raw(short_id));
-    commit_info_title.push(text::Span::raw(" "));
-    commit_info_title.push(text::Span::raw(author_date));
-    commit_info_title.push(text::Span::raw(" "));
-    if !references.is_empty() {
-        commit_info_title.push(text::Span::raw("("));
-        for name in references.head_names().into_iter() {
-            commit_info_title.push(text::Span::raw(name));
-            commit_info_title.push(text::Span::raw(", "));
+    {
+        commit_info_title.push(text::Span::raw(" "));
+        commit_info_title.push(text::Span::raw("Commit:"));
+        commit_info_title.push(text::Span::raw(" "));
+        commit_info_title.push(text::Span::raw(short_id));
+        commit_info_title.push(text::Span::raw(" "));
+        commit_info_title.push(text::Span::raw(author_date));
+        commit_info_title.push(text::Span::raw(" "));
+        if !references.is_empty() {
+            commit_info_title.push(text::Span::raw("("));
+            for name in references.head_names().into_iter() {
+                commit_info_title.push(text::Span::raw(name));
+                commit_info_title.push(text::Span::raw(", "));
+            }
+            for name in references.local_branch_names().into_iter() {
+                commit_info_title.push(text::Span::raw(name));
+                commit_info_title.push(text::Span::raw(", "));
+            }
+            for name in references.remote_branch_names().into_iter() {
+                commit_info_title.push(text::Span::raw(name));
+                commit_info_title.push(text::Span::raw(", "));
+            }
+            for name in references.tag_names().into_iter() {
+                commit_info_title.push(text::Span::raw(name));
+                commit_info_title.push(text::Span::raw(", "));
+            }
+            commit_info_title.pop();
+            commit_info_title.push(text::Span::raw(")"));
+            commit_info_title.push(text::Span::raw(" "));
         }
-        for name in references.local_branch_names().into_iter() {
-            commit_info_title.push(text::Span::raw(name));
-            commit_info_title.push(text::Span::raw(", "));
-        }
-        for name in references.remote_branch_names().into_iter() {
-            commit_info_title.push(text::Span::raw(name));
-            commit_info_title.push(text::Span::raw(", "));
-        }
-        for name in references.tag_names().into_iter() {
-            commit_info_title.push(text::Span::raw(name));
-            commit_info_title.push(text::Span::raw(", "));
-        }
-        commit_info_title.pop();
-        commit_info_title.push(text::Span::raw(")"));
+        commit_info_title.push(text::Span::raw(author));
         commit_info_title.push(text::Span::raw(" "));
     }
-    commit_info_title.push(text::Span::raw(author));
-    commit_info_title.push(text::Span::raw(" "));
 
     text::Spans::from(commit_info_title)
 }
