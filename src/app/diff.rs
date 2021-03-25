@@ -35,7 +35,7 @@ impl<'a> Diff<'a> {
         }
     }
 
-    pub fn lines(&'a self) -> &'a Vec<DiffLine> {
+    pub fn lines(&self) -> &Vec<DiffLine> {
         self.lines.get_or_init(|| self.calc_lines())
     }
 

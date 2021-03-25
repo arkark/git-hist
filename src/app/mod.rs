@@ -1,5 +1,6 @@
 use crate::args::Args;
 
+mod commit;
 mod controller;
 mod dashboard;
 mod diff;
@@ -22,12 +23,12 @@ pub fn run(args: Args) -> Result<()> {
 
     let mut terminal = Terminal::new()?;
     let mut current_state = State::new(&history, &terminal);
-    let dashboard = Dashboard::new(&current_state, &repo)?;
+    let dashboard = Dashboard::new(&current_state);
     dashboard.draw(&mut terminal)?;
 
     while let Some(next_state) = controller::poll_next_event(current_state, &history)? {
         current_state = next_state;
-        let dashboard = Dashboard::new(&current_state, &repo)?;
+        let dashboard = Dashboard::new(&current_state);
         dashboard.draw(&mut terminal)?;
     }
 

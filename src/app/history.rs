@@ -1,23 +1,23 @@
+use crate::app::commit::Commit;
 use crate::app::diff::Diff;
-use git2::{Commit, Oid, Repository};
 
 pub struct TurningPoint<'a> {
-    commit_oid: Oid,
+    commit: Commit<'a>,
     diff: Diff<'a>,
     index_of_history: Option<usize>,
 }
 
 impl<'a> TurningPoint<'a> {
-    pub fn new(commit_oid: Oid, diff: Diff<'a>) -> Self {
+    pub fn new(commit: Commit<'a>, diff: Diff<'a>) -> Self {
         Self {
-            commit_oid,
+            commit,
             diff,
             index_of_history: None,
         }
     }
 
-    pub fn get_commit<'repo>(&self, repo: &'repo Repository) -> Commit<'repo> {
-        repo.find_commit(self.commit_oid).unwrap()
+    pub fn commit(&self) -> &Commit {
+        &self.commit
     }
 
     pub fn diff(&self) -> &Diff {

@@ -1,11 +1,7 @@
 use crate::app::state::State;
 use crate::app::terminal::Terminal;
 use anyhow::Result;
-use chrono::TimeZone;
-use git2::{Reference, Repository};
-use itertools::Itertools;
 use std::cmp;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use tui::{layout, text, widgets};
 
@@ -23,20 +19,20 @@ pub struct Dashboard<'a> {
 }
 
 impl<'a> Dashboard<'a> {
-    pub fn new(state: &'a State, repo: &'a Repository) -> Result<Self> {
-        let left_navi_text = get_left_navi_text(&state, &repo);
-        let right_navi_text = get_right_navi_text(&state, &repo);
-        let commit_info_title = get_commit_info_title(&state, &repo)?;
-        let commit_info_text = get_commit_info_text(&state, &repo);
-        let diff_text = get_diff_text(&state, &repo);
+    pub fn new(state: &'a State) -> Self {
+        let left_navi_text = get_left_navi_text(&state);
+        let right_navi_text = get_right_navi_text(&state);
+        let commit_info_title = get_commit_info_title(&state);
+        let commit_info_text = get_commit_info_text(&state);
+        let diff_text = get_diff_text(&state);
 
-        Ok(Self {
+        Self {
             commit_info_title,
             commit_info_text,
             left_navi_text,
             right_navi_text,
             diff_text,
-        })
+        }
     }
 
     pub fn draw(self, terminal: &mut Terminal) -> Result<()> {
@@ -100,7 +96,7 @@ impl<'a> Dashboard<'a> {
     }
 }
 
-fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+fn get_left_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
     let backward_symbol = if state.is_earliest_commit() { "" } else { "<<" };
     let up_symbol = if state.can_move_up() { "^" } else { "" };
     let down_symbol = if state.can_move_down() { "v" } else { "" };
@@ -113,7 +109,7 @@ fn get_left_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::
     ]
 }
 
-fn get_right_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+fn get_right_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
     let forward_symbol = if state.is_latest_commit() { "" } else { ">>" };
     let up_symbol = if state.can_move_up() { "^" } else { "" };
     let down_symbol = if state.can_move_down() { "v" } else { "" };
@@ -126,103 +122,52 @@ fn get_right_navi_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text:
     ]
 }
 
-fn get_commit_info_title<'a>(state: &'a State, repo: &'a Repository) -> Result<text::Spans<'a>> {
-    let commit = state.point().get_commit(&repo);
-
-    let commit_short_id = commit.as_object().short_id()?;
-
-    let references = repo.references()?.filter_map(|r| r.ok()).filter(|r| {
-        if let Some(oid) = r.target() {
-            oid == commit.id()
-        } else {
-            false
-        }
-    });
-    let references_groups: HashMap<&str, Vec<Reference<'_>>> =
-        references.into_group_map_by(|r| match r {
-            _ if r.is_branch() => "branch",
-            _ if r.is_remote() => "remote",
-            _ if r.is_tag() => "tag",
-            _ => "",
-        });
-
-    let empty_vec = Vec::new();
-
-    let head = repo.head().unwrap();
-    let head_names = if head.target().unwrap() == commit.id() && head.name() == Some("HEAD") {
-        vec![String::from("HEAD")]
-    } else {
-        vec![]
-    };
-    let branch_names = references_groups
-        .get("branch")
-        .unwrap_or(&empty_vec)
-        .iter()
-        .filter_map(|r| {
-            r.shorthand().map(|name| {
-                let head_prefix = if r.name() == head.name() {
-                    "HEAD -> "
-                } else {
-                    ""
-                };
-                format!("{}{}", head_prefix, name)
-            })
-        })
-        .collect::<Vec<_>>();
-    let remote_names = references_groups
-        .get("remote")
-        .unwrap_or(&empty_vec)
-        .iter()
-        .filter_map(|r| r.shorthand().map(String::from))
-        .collect::<Vec<_>>();
-    let tag_names = references_groups
-        .get("tag")
-        .unwrap_or(&empty_vec)
-        .iter()
-        .filter_map(|r| r.shorthand().map(|name| format!("tag: {}", name)))
-        .collect::<Vec<_>>();
+fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
+    let short_id = state.point().commit().short_id();
+    let references = state.point().commit().references();
 
     // TODO:
     //   - option: date format (default: "[%Y-%m-%d]")
     //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
-    //   - option: author date (default) or committer date
-    let commit_date = chrono::DateTime::<chrono::Local>::from(
-        chrono::Utc.timestamp(commit.author().when().seconds(), 0),
-    )
-    .format("[%Y-%m-%d]")
-    .to_string();
-
-    let commit_author = format!("@{}", commit.author().name().unwrap_or_default());
+    //   - option: author (default) or committer
+    let author = format!("@{}", state.point().commit().author());
+    let author_date = state
+        .point()
+        .commit()
+        .author_date()
+        .format("[%Y-%m-%d]")
+        .to_string();
+    let _committer = format!("@{}", state.point().commit().committer());
+    let _committer_date = state
+        .point()
+        .commit()
+        .committer_date()
+        .format("[%Y-%m-%d]")
+        .to_string();
 
     let mut commit_info_title = vec![];
     commit_info_title.push(text::Span::raw(" "));
     commit_info_title.push(text::Span::raw("Commit:"));
     commit_info_title.push(text::Span::raw(" "));
-    commit_info_title.push(text::Span::raw(String::from(
-        commit_short_id.as_str().unwrap_or_default(),
-    )));
+    commit_info_title.push(text::Span::raw(short_id));
     commit_info_title.push(text::Span::raw(" "));
-    commit_info_title.push(text::Span::raw(commit_date));
+    commit_info_title.push(text::Span::raw(author_date));
     commit_info_title.push(text::Span::raw(" "));
-    if !head_names.is_empty()
-        || !branch_names.is_empty()
-        || !remote_names.is_empty()
-        || !tag_names.is_empty()
-    {
+    if !references.is_empty() {
         commit_info_title.push(text::Span::raw("("));
-        for name in head_names {
+        for name in references.head_names().into_iter() {
             commit_info_title.push(text::Span::raw(name));
             commit_info_title.push(text::Span::raw(", "));
         }
-        for name in branch_names {
+        for name in references.local_branch_names().into_iter() {
             commit_info_title.push(text::Span::raw(name));
             commit_info_title.push(text::Span::raw(", "));
         }
-        for name in remote_names {
+        for name in references.remote_branch_names().into_iter() {
             commit_info_title.push(text::Span::raw(name));
             commit_info_title.push(text::Span::raw(", "));
         }
-        for name in tag_names {
+        for name in references.tag_names().into_iter() {
             commit_info_title.push(text::Span::raw(name));
             commit_info_title.push(text::Span::raw(", "));
         }
@@ -230,24 +175,20 @@ fn get_commit_info_title<'a>(state: &'a State, repo: &'a Repository) -> Result<t
         commit_info_title.push(text::Span::raw(")"));
         commit_info_title.push(text::Span::raw(" "));
     }
-    commit_info_title.push(text::Span::raw(commit_author));
+    commit_info_title.push(text::Span::raw(author));
     commit_info_title.push(text::Span::raw(" "));
-    let commit_info_title = text::Spans::from(commit_info_title);
 
-    Ok(commit_info_title)
+    text::Spans::from(commit_info_title)
 }
 
-fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text::Spans<'a>> {
-    let commit = state.point().get_commit(&repo);
-
-    let commit_summary = String::from(commit.summary().unwrap_or_default());
-    let commit_summary = text::Spans::from(vec![text::Span::raw(commit_summary)]);
+fn get_commit_info_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
+    let commit_summary = text::Spans::from(vec![text::Span::raw(state.point().commit().summary())]);
     let change_status = text::Spans(vec![text::Span::raw(state.point().diff().status())]);
 
     vec![commit_summary, change_status]
 }
 
-fn get_diff_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
+fn get_diff_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
     let max_line_number_len = state.max_line_number_len();
     for line in state.point().diff().lines().iter().skip(state.line_index()) {

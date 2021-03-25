@@ -1,3 +1,4 @@
+use crate::app::commit::Commit;
 use crate::app::diff::Diff;
 use crate::app::history::{History, TurningPoint};
 use anyhow::{anyhow, Context, Result};
@@ -60,9 +61,9 @@ pub fn get_history<P: AsRef<path::Path>>(
 
     let mut file_oid = latest_file_oid;
     let mut file_path = file_path_from_repository;
-    let history = History::new(commits.iter().filter_map(|commit| {
-        let old_tree = commit.parent(0).and_then(|p| p.tree()).ok();
-        let new_tree = commit.tree().ok();
+    let history = History::new(commits.iter().filter_map(|git_commit| {
+        let old_tree = git_commit.parent(0).and_then(|p| p.tree()).ok();
+        let new_tree = git_commit.tree().ok();
         assert!(new_tree.is_some());
 
         let mut git_diff = repo
@@ -88,8 +89,9 @@ pub fn get_history<P: AsRef<path::Path>>(
         }
 
         delta.map(|delta| {
+            let commit = Commit::new(&git_commit, repo);
             let diff = Diff::new(&delta, repo);
-            TurningPoint::new(commit.id(), diff)
+            TurningPoint::new(commit, diff)
         })
     }));
 
