@@ -2,7 +2,7 @@ use crate::app::state::State;
 use crate::app::terminal::Terminal;
 use anyhow::Result;
 use chrono::TimeZone;
-use git2::{Delta, Reference, Repository};
+use git2::{Reference, Repository};
 use itertools::Itertools;
 use std::cmp;
 use std::collections::HashMap;
@@ -242,29 +242,7 @@ fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text:
 
     let commit_summary = String::from(commit.summary().unwrap_or_default());
     let commit_summary = text::Spans::from(vec![text::Span::raw(commit_summary)]);
-
-    let old_path = state.point().diff().old_path();
-    let new_path = state.point().diff().new_path();
-    assert!(new_path.is_some());
-
-    let change_status = match state.point().diff().status() {
-        Delta::Modified => vec![
-            text::Span::raw("* Modified: "),
-            text::Span::raw(new_path.unwrap()),
-        ],
-        Delta::Added => vec![
-            text::Span::raw("* Added: "),
-            text::Span::raw(new_path.unwrap()),
-        ],
-        Delta::Renamed => vec![
-            text::Span::raw("* Renamed: "),
-            text::Span::raw(old_path.unwrap()),
-            text::Span::raw(" -> "),
-            text::Span::raw(new_path.unwrap()),
-        ],
-        _ => unreachable!(),
-    };
-    let change_status = text::Spans(change_status);
+    let change_status = text::Spans(vec![text::Span::raw(state.point().diff().status())]);
 
     vec![commit_summary, change_status]
 }

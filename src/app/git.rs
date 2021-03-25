@@ -88,14 +88,7 @@ pub fn get_history<P: AsRef<path::Path>>(
         }
 
         delta.map(|delta| {
-            let diff = Diff::new(
-                delta.status(),
-                delta.old_file().id(),
-                delta.new_file().id(),
-                delta.old_file().path().map(|p| p.to_string_lossy()),
-                delta.new_file().path().map(|p| p.to_string_lossy()),
-                repo,
-            );
+            let diff = Diff::new(&delta, repo);
             TurningPoint::new(commit.id(), diff)
         })
     }));

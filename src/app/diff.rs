@@ -1,5 +1,5 @@
 use crate::app::dashboard::Dashboard;
-use git2::{Delta, Oid, Repository};
+use git2::{Delta, DiffDelta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
 use std::convert::TryFrom;
@@ -17,20 +17,19 @@ pub struct Diff<'a> {
 }
 
 impl<'a> Diff<'a> {
-    pub fn new<S: Into<String>>(
-        status: Delta,
-        old_file_oid: Oid,
-        new_file_oid: Oid,
-        old_path: Option<S>,
-        new_path: Option<S>,
-        repo: &'a Repository,
-    ) -> Self {
+    pub fn new(diff_delta: &DiffDelta, repo: &'a Repository) -> Self {
         Self {
-            status,
-            old_file_oid,
-            new_file_oid,
-            old_path: old_path.map(|path| path.into()),
-            new_path: new_path.map(|path| path.into()),
+            status: diff_delta.status(),
+            old_file_oid: diff_delta.old_file().id(),
+            new_file_oid: diff_delta.new_file().id(),
+            old_path: diff_delta
+                .old_file()
+                .path()
+                .map(|p| p.to_string_lossy().to_string()),
+            new_path: diff_delta
+                .new_file()
+                .path()
+                .map(|p| p.to_string_lossy().to_string()),
             lines: OnceCell::new(),
             repo,
         }
@@ -74,16 +73,17 @@ impl<'a> Diff<'a> {
             .collect::<Vec<_>>()
     }
 
-    pub fn old_path(&self) -> Option<&str> {
-        self.old_path.as_deref()
-    }
-
-    pub fn new_path(&self) -> Option<&str> {
-        self.new_path.as_deref()
-    }
-
-    pub fn status(&self) -> Delta {
-        self.status
+    pub fn status(&self) -> String {
+        match self.status {
+            Delta::Modified => format!("* Modified: {}", self.new_path.as_deref().unwrap()),
+            Delta::Added => format!("* Added: {}", self.new_path.as_deref().unwrap()),
+            Delta::Renamed => format!(
+                "* Renamed: {} -> {}",
+                self.old_path.as_deref().unwrap(),
+                self.new_path.as_deref().unwrap()
+            ),
+            _ => unreachable!(),
+        }
     }
 
     pub fn max_line_number_len(&self) -> usize {
