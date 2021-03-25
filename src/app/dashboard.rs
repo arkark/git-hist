@@ -243,11 +243,11 @@ fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text:
     let commit_summary = String::from(commit.summary().unwrap_or_default());
     let commit_summary = text::Spans::from(vec![text::Span::raw(commit_summary)]);
 
-    let old_path = state.point().old_path();
-    let new_path = state.point().new_path();
+    let old_path = state.point().diff().old_path();
+    let new_path = state.point().diff().new_path();
     assert!(new_path.is_some());
 
-    let change_status = match state.point().diff_status() {
+    let change_status = match state.point().diff().status() {
         Delta::Modified => vec![
             text::Span::raw("* Modified: "),
             text::Span::raw(new_path.unwrap()),
@@ -272,7 +272,7 @@ fn get_commit_info_text<'a>(state: &'a State, repo: &'a Repository) -> Vec<text:
 fn get_diff_text<'a>(state: &'a State, _repo: &'a Repository) -> Vec<text::Spans<'a>> {
     let mut diff_text = vec![];
     let max_line_number_len = state.max_line_number_len();
-    for line in state.point().iter_diff_lines().skip(state.line_index()) {
+    for line in state.point().diff().lines().iter().skip(state.line_index()) {
         let old_line_number = format!(
             "{:>1$}",
             if let Some(number) = line.old_line_number() {

@@ -1,6 +1,5 @@
-use crate::app::diff::{Diff, DiffLine, IndexPair};
-use git2::{Commit, Delta, Oid, Repository};
-use std::slice::Iter;
+use crate::app::diff::Diff;
+use git2::{Commit, Oid, Repository};
 
 pub struct TurningPoint<'a> {
     commit_oid: Oid,
@@ -21,56 +20,8 @@ impl<'a> TurningPoint<'a> {
         repo.find_commit(self.commit_oid).unwrap()
     }
 
-    pub fn old_path(&self) -> Option<&str> {
-        self.diff.old_path()
-    }
-
-    pub fn new_path(&self) -> Option<&str> {
-        self.diff.new_path()
-    }
-
-    pub fn diff_status(&self) -> Delta {
-        self.diff.status()
-    }
-
-    pub fn iter_diff_lines(&self) -> Iter<'_, DiffLine> {
-        self.diff.lines().iter()
-    }
-
-    pub fn max_line_number_len(&self) -> usize {
-        self.diff.max_line_number_len()
-    }
-
-    pub fn allowed_min_index(&self, terminal_height: usize) -> usize {
-        self.diff.allowed_min_index(terminal_height)
-    }
-
-    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
-        self.diff.allowed_max_index(terminal_height)
-    }
-
-    pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
-        self.diff.can_move_up(index, terminal_height)
-    }
-
-    pub fn can_move_down(&self, index: usize, terminal_height: usize) -> bool {
-        self.diff.can_move_down(index, terminal_height)
-    }
-
-    pub fn nearest_old_index_pair(&self, index: usize) -> IndexPair {
-        self.diff.nearest_old_index_pair(index)
-    }
-
-    pub fn nearest_new_index_pair(&self, index: usize) -> IndexPair {
-        self.diff.nearest_new_index_pair(index)
-    }
-
-    pub fn find_index_from_old_index(&self, old_index: usize) -> Option<usize> {
-        self.diff.find_index_from_old_index(old_index)
-    }
-
-    pub fn find_index_from_new_index(&self, new_index: usize) -> Option<usize> {
-        self.diff.find_index_from_new_index(new_index)
+    pub fn diff(&self) -> &Diff {
+        &self.diff
     }
 }
 

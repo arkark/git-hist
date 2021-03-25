@@ -17,7 +17,7 @@ impl<'a> State<'a> {
     pub fn new(history: &'a History<'a>, terminal: &Terminal) -> Self {
         let point = history.latest().unwrap();
         let line_index = 0;
-        let max_line_number_len = point.max_line_number_len();
+        let max_line_number_len = point.diff().max_line_number_len();
         let is_latest_commit = history.forward(point).is_none();
         let is_earliest_commit = history.backward(point).is_none();
         let terminal_height = terminal.height();
@@ -53,18 +53,21 @@ impl<'a> State<'a> {
 
     pub fn can_move_up(&self) -> bool {
         self.point
+            .diff()
             .can_move_up(self.line_index, self.terminal_height)
     }
 
     pub fn can_move_down(&self) -> bool {
         self.point
+            .diff()
             .can_move_down(self.line_index, self.terminal_height)
     }
 
     pub fn backward_commit(mut self, history: &'a History) -> Self {
         if let Some(next_point) = history.backward(self.point) {
-            let index_pair = self.point.nearest_old_index_pair(self.line_index);
+            let index_pair = self.point.diff().nearest_old_index_pair(self.line_index);
             let line_index = next_point
+                .diff()
                 .find_index_from_new_index(index_pair.partial_index())
                 .map(|index| {
                     usize::try_from(cmp::max(
@@ -75,8 +78,10 @@ impl<'a> State<'a> {
                     .unwrap()
                 })
                 .unwrap_or(0);
-            let max_line_number_len =
-                cmp::max(self.max_line_number_len, next_point.max_line_number_len());
+            let max_line_number_len = cmp::max(
+                self.max_line_number_len,
+                next_point.diff().max_line_number_len(),
+            );
             let is_latest_commit = history.forward(next_point).is_none();
             let is_earliest_commit = history.backward(next_point).is_none();
 
@@ -91,8 +96,9 @@ impl<'a> State<'a> {
 
     pub fn forward_commit(mut self, history: &'a History) -> Self {
         if let Some(next_point) = history.forward(self.point) {
-            let index_pair = self.point.nearest_new_index_pair(self.line_index);
+            let index_pair = self.point.diff().nearest_new_index_pair(self.line_index);
             let line_index = next_point
+                .diff()
                 .find_index_from_old_index(index_pair.partial_index())
                 .map(|index| {
                     usize::try_from(cmp::max(
@@ -103,8 +109,10 @@ impl<'a> State<'a> {
                     .unwrap()
                 })
                 .unwrap_or(0);
-            let max_line_number_len =
-                cmp::max(self.max_line_number_len, next_point.max_line_number_len());
+            let max_line_number_len = cmp::max(
+                self.max_line_number_len,
+                next_point.diff().max_line_number_len(),
+            );
             let is_latest_commit = history.forward(next_point).is_none();
             let is_earliest_commit = history.backward(next_point).is_none();
 
@@ -137,7 +145,7 @@ impl<'a> State<'a> {
             isize::try_from(self.line_index).unwrap(),
             cmp::max(
                 isize::try_from(self.line_index).unwrap() - isize::try_from(diff_height).unwrap(),
-                isize::try_from(self.point.allowed_min_index(self.terminal_height)).unwrap(),
+                isize::try_from(self.point.diff().allowed_min_index(self.terminal_height)).unwrap(),
             ),
         ))
         .unwrap();
@@ -150,7 +158,7 @@ impl<'a> State<'a> {
             self.line_index,
             cmp::min(
                 self.line_index + diff_height,
-                self.point.allowed_max_index(self.terminal_height),
+                self.point.diff().allowed_max_index(self.terminal_height),
             ),
         );
         self
@@ -159,7 +167,7 @@ impl<'a> State<'a> {
     pub fn move_line_to_top(mut self) -> Self {
         self.line_index = cmp::min(
             self.line_index,
-            self.point.allowed_min_index(self.terminal_height),
+            self.point.diff().allowed_min_index(self.terminal_height),
         );
         self
     }
@@ -167,7 +175,7 @@ impl<'a> State<'a> {
     pub fn move_line_to_bottom(mut self) -> Self {
         self.line_index = cmp::max(
             self.line_index,
-            self.point.allowed_max_index(self.terminal_height),
+            self.point.diff().allowed_max_index(self.terminal_height),
         );
         self
     }
