@@ -9,9 +9,9 @@ const HEAD_NAME: &str = "HEAD";
 pub struct Commit<'a> {
     oid: Oid,
     short_id: String,
-    author: String,
+    author_name: String,
     author_date: chrono::DateTime<chrono::Local>,
-    committer: String,
+    committer_name: String,
     committer_date: chrono::DateTime<chrono::Local>,
     summary: String,
     references: OnceCell<References>,
@@ -41,9 +41,9 @@ impl<'a> Commit<'a> {
         Self {
             oid,
             short_id,
-            author,
+            author_name: author,
             author_date,
-            committer,
+            committer_name: committer,
             committer_date,
             summary,
             references: OnceCell::new(),
@@ -55,16 +55,16 @@ impl<'a> Commit<'a> {
         &self.short_id
     }
 
-    pub fn author(&self) -> &str {
-        &self.author
+    pub fn author_name(&self) -> &str {
+        &self.author_name
     }
 
     pub fn author_date(&self) -> &chrono::DateTime<chrono::Local> {
         &self.author_date
     }
 
-    pub fn committer(&self) -> &str {
-        &self.committer
+    pub fn committer_name(&self) -> &str {
+        &self.committer_name
     }
 
     pub fn committer_date(&self) -> &chrono::DateTime<chrono::Local> {

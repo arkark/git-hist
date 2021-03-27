@@ -3,11 +3,12 @@ use crate::app::terminal::Terminal;
 use anyhow::Result;
 use std::cmp;
 use std::convert::TryFrom;
-use tui::{layout, text, widgets};
+use tui::{layout, style, text, widgets};
 
-pub const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
-pub const COMMIT_INFO_OUTER_HEIGHT: u16 = COMMIT_INFO_INNER_HEIGHT + 2;
-pub const NAVI_WIDTH: u16 = 3;
+const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
+const COMMIT_INFO_OUTER_HEIGHT: u16 = COMMIT_INFO_INNER_HEIGHT + 2;
+const COMMIT_INFO_HORIZONTAL_PADDING: u16 = 1;
+const NAVI_WIDTH: u16 = 3;
 
 #[derive(Debug)]
 pub struct Dashboard<'a> {
@@ -74,12 +75,26 @@ impl<'a> Dashboard<'a> {
             let right_navi_paragraph = widgets::Paragraph::new(self.right_navi_text);
             frame.render_widget(right_navi_paragraph, right_navi_chunk);
 
-            let block = widgets::Block::default()
+            let commit_info_block = widgets::Block::default()
                 .title(self.commit_info_title)
                 .borders(widgets::Borders::ALL)
                 .border_type(widgets::BorderType::Rounded);
-            let commit_info_paragraph = widgets::Paragraph::new(self.commit_info_text).block(block);
-            frame.render_widget(commit_info_paragraph, commit_info_chunk);
+
+            let commit_info_inner_chunk = layout::Layout::default()
+                .direction(layout::Direction::Horizontal)
+                .constraints(
+                    [
+                        layout::Constraint::Length(COMMIT_INFO_HORIZONTAL_PADDING),
+                        layout::Constraint::Min(0),
+                        layout::Constraint::Length(COMMIT_INFO_HORIZONTAL_PADDING),
+                    ]
+                    .as_ref(),
+                )
+                .split(commit_info_block.inner(commit_info_chunk))[1];
+            let commit_info_paragraph = widgets::Paragraph::new(self.commit_info_text);
+
+            frame.render_widget(commit_info_block, commit_info_chunk);
+            frame.render_widget(commit_info_paragraph, commit_info_inner_chunk);
 
             // diff
             let diff_paragraph = widgets::Paragraph::new(self.diff_text);
@@ -134,14 +149,14 @@ fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
     //   - option: date format (default: "[%Y-%m-%d]")
     //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
     //   - option: author (default) or committer
-    let author = format!("@{}", state.point().commit().author());
+    let author_name = format!("@{}", state.point().commit().author_name());
     let author_date = state
         .point()
         .commit()
         .author_date()
         .format("[%Y-%m-%d]")
         .to_string();
-    let _committer = format!("@{}", state.point().commit().committer());
+    let _committer_name = format!("@{}", state.point().commit().committer_name());
     let _committer_date = state
         .point()
         .commit()
@@ -151,12 +166,16 @@ fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
 
     let mut commit_info_title = vec![];
     {
+        commit_info_title.push(text::Span::raw("[ "));
+        commit_info_title.push(text::Span::styled(
+            short_id,
+            style::Style::default().fg(style::Color::Yellow),
+        ));
         commit_info_title.push(text::Span::raw(" "));
-        commit_info_title.push(text::Span::raw("Commit:"));
-        commit_info_title.push(text::Span::raw(" "));
-        commit_info_title.push(text::Span::raw(short_id));
-        commit_info_title.push(text::Span::raw(" "));
-        commit_info_title.push(text::Span::raw(author_date));
+        commit_info_title.push(text::Span::styled(
+            author_date,
+            style::Style::default().fg(style::Color::LightMagenta),
+        ));
         commit_info_title.push(text::Span::raw(" "));
         if !references.is_empty() {
             commit_info_title.push(text::Span::raw("("));
@@ -180,8 +199,11 @@ fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
             commit_info_title.push(text::Span::raw(")"));
             commit_info_title.push(text::Span::raw(" "));
         }
-        commit_info_title.push(text::Span::raw(author));
-        commit_info_title.push(text::Span::raw(" "));
+        commit_info_title.push(text::Span::styled(
+            author_name,
+            style::Style::default().fg(style::Color::Cyan),
+        ));
+        commit_info_title.push(text::Span::raw(" ]"));
     }
 
     text::Spans::from(commit_info_title)
@@ -223,7 +245,7 @@ fn get_diff_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
             text::Span::raw(old_line_number),
             text::Span::raw(" "),
             text::Span::raw(new_line_number),
-            text::Span::raw(" |"),
+            text::Span::raw(" │"),
             text::Span::styled(sign, style),
             text::Span::styled(" ", style),
         ];
