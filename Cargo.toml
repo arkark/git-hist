@@ -1,6 +1,6 @@
 [package]
 name = "git-hist"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ark <target.ark@gmail.com>"]
 description = "A CLI to browse the history of files in any git repository **on a terminal**."
 repository = "https://github.com/arkark/git-hist"
