@@ -8,6 +8,7 @@ readme = "README.md"
 categories = ["command-line-utilities"]
 keywords = ["git", "cli", "terminal"]
 edition = "2018"
+license = "MIT"
 
 [dependencies]
 itertools = "0.10"
