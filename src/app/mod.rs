@@ -1,4 +1,5 @@
-use crate::args::Args;
+use anyhow::Result;
+use std::panic;
 
 mod commit;
 mod controller;
@@ -9,11 +10,10 @@ mod history;
 mod state;
 mod terminal;
 
+use crate::args::Args;
 use dashboard::Dashboard;
 use state::State;
 use terminal::Terminal;
-
-use anyhow::Result;
 
 pub fn run(args: Args) -> Result<()> {
     let repo = git::get_repository()?;
@@ -21,17 +21,35 @@ pub fn run(args: Args) -> Result<()> {
 
     terminal::initialize()?;
 
-    let mut terminal = Terminal::new()?;
-    let mut current_state = State::first(&history, &terminal);
-    let dashboard = Dashboard::new(&current_state);
-    dashboard.draw(&mut terminal)?;
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        let _ = exit();
+        default_hook(panic_info);
+    }));
 
-    while let Some(next_state) = controller::poll_next_event(current_state, &history)? {
-        current_state = next_state;
+    (|| -> Result<()> {
+        let mut terminal = Terminal::new()?;
+        let mut current_state = State::first(&history, &terminal);
         let dashboard = Dashboard::new(&current_state);
         dashboard.draw(&mut terminal)?;
-    }
 
+        while let Some(next_state) = controller::poll_next_event(current_state, &history)? {
+            current_state = next_state;
+            let dashboard = Dashboard::new(&current_state);
+            dashboard.draw(&mut terminal)?;
+        }
+
+        Ok(())
+    })()
+    .map_err(|e| {
+        let _ = exit();
+        e
+    })?;
+
+    exit()
+}
+
+fn exit() -> Result<()> {
     terminal::terminate()?;
     Ok(())
 }
