@@ -2,8 +2,6 @@ use crate::app::state::State;
 use crate::app::terminal::Terminal;
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use std::cmp;
-use std::convert::TryFrom;
 use std::iter;
 use tui::{layout, style, text, widgets};
 
@@ -120,9 +118,7 @@ impl<'a> Dashboard<'a> {
     }
 
     pub fn diff_height(terminal_height: usize) -> usize {
-        let terminal_height: isize = isize::try_from(terminal_height).unwrap();
-        let commit_info_outer_height: isize = isize::try_from(COMMIT_INFO_OUTER_HEIGHT).unwrap();
-        usize::try_from(cmp::max(0, terminal_height - commit_info_outer_height)).unwrap()
+        terminal_height.saturating_sub(usize::from(COMMIT_INFO_OUTER_HEIGHT))
     }
 
     fn get_left_navi_paragraph(state: &'a State) -> widgets::Paragraph<'a> {

@@ -2,7 +2,6 @@ use crate::app::dashboard::Dashboard;
 use git2::{Delta, DiffDelta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
-use std::convert::TryFrom;
 use std::{cmp, ops::Deref};
 use tui::style::{Color, Style};
 
@@ -128,19 +127,15 @@ impl<'a> Diff<'a> {
 
     pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
         if let Some(lines) = self.lines() {
-            let diff_length = isize::try_from(lines.len()).unwrap();
-            let diff_height = isize::try_from(Dashboard::diff_height(terminal_height)).unwrap();
+            let diff_length = lines.len();
+            let diff_height = Dashboard::diff_height(terminal_height);
 
-            if diff_length == 0 {
-                0
-            } else {
-                // TODO:
-                //   - option: beyond-last-line (default: false)
-                //     - whether the diff view will scroll beyond the last line
-                //     - true:  diff_length - 1
-                //     - false: diff_length - diff_height
-                usize::try_from((diff_length - diff_height).clamp(0, diff_length - 1)).unwrap()
-            }
+            // TODO:
+            //   - option: beyond-last-line (default: false)
+            //     - whether the diff view will scroll beyond the last line
+            //     - true:  diff_length - 1
+            //     - false: diff_length - max(1, diff_height)
+            diff_length.saturating_sub(cmp::max(1, diff_height))
         } else {
             0
         }

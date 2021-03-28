@@ -2,7 +2,6 @@ use crate::app::dashboard::Dashboard;
 use crate::app::history::{History, TurningPoint};
 use crate::app::terminal::Terminal;
 use std::cmp;
-use std::convert::TryFrom;
 
 pub struct State<'a> {
     point: &'a TurningPoint<'a>,
@@ -64,14 +63,7 @@ impl<'a> State<'a> {
             let line_index = next_point
                 .diff()
                 .find_index_from_new_index(index_pair.partial_index())
-                .map(|index| {
-                    usize::try_from(cmp::max(
-                        0,
-                        isize::try_from(index).unwrap()
-                            - isize::try_from(index_pair.relative_index()).unwrap(),
-                    ))
-                    .unwrap()
-                })
+                .map(|index| index.saturating_sub(index_pair.relative_index()))
                 .unwrap_or(0);
             let max_line_number_len = cmp::max(
                 self.max_line_number_len,
@@ -95,14 +87,7 @@ impl<'a> State<'a> {
             let line_index = next_point
                 .diff()
                 .find_index_from_old_index(index_pair.partial_index())
-                .map(|index| {
-                    usize::try_from(cmp::max(
-                        0,
-                        isize::try_from(index).unwrap()
-                            - isize::try_from(index_pair.relative_index()).unwrap(),
-                    ))
-                    .unwrap()
-                })
+                .map(|index| index.saturating_sub(index_pair.relative_index()))
                 .unwrap_or(0);
             let max_line_number_len = cmp::max(
                 self.max_line_number_len,
@@ -151,14 +136,13 @@ impl<'a> State<'a> {
     pub fn scroll_page_up(self) -> Self {
         let diff_height = Dashboard::diff_height(self.terminal_height);
 
-        let line_index = usize::try_from(cmp::min(
-            isize::try_from(self.line_index).unwrap(),
+        let line_index = cmp::min(
+            self.line_index,
             cmp::max(
-                isize::try_from(self.line_index).unwrap() - isize::try_from(diff_height).unwrap(),
-                isize::try_from(self.point.diff().allowed_min_index(self.terminal_height)).unwrap(),
+                self.line_index.saturating_sub(diff_height),
+                self.point.diff().allowed_min_index(self.terminal_height),
             ),
-        ))
-        .unwrap();
+        );
 
         State::new(
             self.point,
