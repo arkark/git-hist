@@ -12,16 +12,20 @@ pub struct Diff<'a> {
     new_file_oid: Oid,
     old_path: Option<String>,
     new_path: Option<String>,
+    has_old_binary_file: bool,
+    has_new_binary_file: bool,
     lines: OnceCell<Vec<DiffLine>>,
     repo: &'a Repository,
 }
 
 impl<'a> Diff<'a> {
     pub fn new(diff_delta: &DiffDelta, repo: &'a Repository) -> Self {
+        let old_file_oid = diff_delta.old_file().id();
+        let new_file_oid = diff_delta.new_file().id();
         Self {
             status: diff_delta.status(),
-            old_file_oid: diff_delta.old_file().id(),
-            new_file_oid: diff_delta.new_file().id(),
+            old_file_oid,
+            new_file_oid,
             old_path: diff_delta
                 .old_file()
                 .path()
@@ -30,27 +34,44 @@ impl<'a> Diff<'a> {
                 .new_file()
                 .path()
                 .map(|p| p.to_string_lossy().to_string()),
+            has_old_binary_file: repo
+                .find_blob(old_file_oid)
+                .map(|blob| blob.is_binary())
+                .unwrap_or(true),
+            has_new_binary_file: repo
+                .find_blob(new_file_oid)
+                .map(|blob| blob.is_binary())
+                .unwrap_or(true),
             lines: OnceCell::new(),
             repo,
         }
     }
 
-    pub fn lines(&self) -> &Vec<DiffLine> {
-        self.lines.get_or_init(|| self.calc_lines())
+    pub fn lines(&self) -> Option<&Vec<DiffLine>> {
+        if self.has_new_binary_file {
+            None
+        } else {
+            Some(self.lines.get_or_init(|| self.calc_lines()))
+        }
     }
 
     fn calc_lines(&self) -> Vec<DiffLine> {
-        // TODO: show "binary file" if the file is a binary file
-        let old_file_text = self
-            .repo
-            .find_blob(self.old_file_oid)
-            .map(|blob| blob.content().to_vec())
-            .unwrap_or_default();
+        let old_file_text = if self.has_old_binary_file {
+            vec![]
+        } else {
+            self.repo
+                .find_blob(self.old_file_oid)
+                .map(|blob| blob.content().to_vec())
+                .unwrap_or_default()
+        };
+
+        assert!(!self.has_new_binary_file);
         let new_file_text = self
             .repo
             .find_blob(self.new_file_oid)
             .map(|blob| blob.content().to_vec())
             .unwrap_or_default();
+
         let text_diff = TextDiff::from_lines(&old_file_text, &new_file_text);
         text_diff
             .ops()
@@ -88,6 +109,7 @@ impl<'a> Diff<'a> {
 
     pub fn max_line_number_len(&self) -> usize {
         self.lines()
+            .unwrap_or(&vec![])
             .iter()
             .filter_map(|change| {
                 cmp::max(change.old_index, change.new_index).map(|x| {
@@ -105,18 +127,22 @@ impl<'a> Diff<'a> {
     }
 
     pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
-        let diff_length = isize::try_from(self.lines().len()).unwrap();
-        let diff_height = isize::try_from(Dashboard::diff_height(terminal_height)).unwrap();
+        if let Some(lines) = self.lines() {
+            let diff_length = isize::try_from(lines.len()).unwrap();
+            let diff_height = isize::try_from(Dashboard::diff_height(terminal_height)).unwrap();
 
-        if diff_length == 0 {
-            0
+            if diff_length == 0 {
+                0
+            } else {
+                // TODO:
+                //   - option: beyond-last-line (default: false)
+                //     - whether the diff view will scroll beyond the last line
+                //     - true:  diff_length - 1
+                //     - false: diff_length - diff_height
+                usize::try_from((diff_length - diff_height).clamp(0, diff_length - 1)).unwrap()
+            }
         } else {
-            // TODO:
-            //   - option: beyond-last-line (default: false)
-            //     - whether the diff view will scroll beyond the last line
-            //     - true:  diff_length - 1
-            //     - false: diff_length - diff_height
-            usize::try_from((diff_length - diff_height).clamp(0, diff_length - 1)).unwrap()
+            0
         }
     }
 
@@ -129,73 +155,81 @@ impl<'a> Diff<'a> {
     }
 
     pub fn nearest_old_index_pair(&self, index: usize) -> IndexPair {
-        if let Some(line) = self
-            .lines()
-            .iter()
-            .skip(index)
-            .find(|line| line.old_index.is_some())
-        {
-            assert!(line.index >= index);
-            IndexPair::new(line.index - index, line.old_index.unwrap())
-        } else if let Some(line) = self
-            .lines()
-            .iter()
-            .take(index)
-            .rev()
-            .find(|line| line.old_index.is_some())
-        {
-            assert!(line.index < index);
-            IndexPair::new(0, line.old_index.unwrap())
+        if let Some(lines) = self.lines() {
+            if let Some(line) = lines
+                .iter()
+                .skip(index)
+                .find(|line| line.old_index.is_some())
+            {
+                assert!(line.index >= index);
+                IndexPair::new(line.index - index, line.old_index.unwrap())
+            } else if let Some(line) = lines
+                .iter()
+                .take(index)
+                .rev()
+                .find(|line| line.old_index.is_some())
+            {
+                assert!(line.index < index);
+                IndexPair::new(0, line.old_index.unwrap())
+            } else {
+                IndexPair::new(0, 0)
+            }
         } else {
             IndexPair::new(0, 0)
         }
     }
 
     pub fn nearest_new_index_pair(&self, index: usize) -> IndexPair {
-        if let Some(line) = self
-            .lines()
-            .iter()
-            .skip(index)
-            .find(|line| line.new_index.is_some())
-        {
-            assert!(line.index >= index);
-            IndexPair::new(line.index - index, line.new_index.unwrap())
-        } else if let Some(line) = self
-            .lines()
-            .iter()
-            .take(index)
-            .rev()
-            .find(|line| line.new_index.is_some())
-        {
-            assert!(line.index < index);
-            IndexPair::new(0, line.new_index.unwrap())
+        if let Some(lines) = self.lines() {
+            if let Some(line) = lines
+                .iter()
+                .skip(index)
+                .find(|line| line.new_index.is_some())
+            {
+                assert!(line.index >= index);
+                IndexPair::new(line.index - index, line.new_index.unwrap())
+            } else if let Some(line) = lines
+                .iter()
+                .take(index)
+                .rev()
+                .find(|line| line.new_index.is_some())
+            {
+                assert!(line.index < index);
+                IndexPair::new(0, line.new_index.unwrap())
+            } else {
+                IndexPair::new(0, 0)
+            }
         } else {
             IndexPair::new(0, 0)
         }
     }
 
     pub fn find_index_from_old_index(&self, old_index: usize) -> Option<usize> {
-        self.lines()
-            .iter()
-            .find(|line| {
-                line.old_index
-                    // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
-                    .filter(|i| *i == old_index)
-                    .is_some()
-            })
-            .map(|line| line.index)
+        self.lines().and_then(|lines| {
+            lines
+                .iter()
+                .find(|line| {
+                    line.old_index
+                        // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
+                        .filter(|i| *i == old_index)
+                        .is_some()
+                })
+                .map(|line| line.index)
+        })
     }
 
     pub fn find_index_from_new_index(&self, new_index: usize) -> Option<usize> {
-        self.lines()
-            .iter()
-            .find(|line| {
-                line.new_index
-                    // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
-                    .filter(|i| *i == new_index)
-                    .is_some()
-            })
-            .map(|line| line.index)
+        self.lines().and_then(|lines| {
+            lines
+                .iter()
+                .find(|line| {
+                    line.new_index
+                        // use https://doc.rust-lang.org/std/option/enum.Option.html#method.contains in the future
+                        .filter(|i| *i == new_index)
+                        .is_some()
+                })
+                .map(|line| line.index)
+        })
     }
 }
 
