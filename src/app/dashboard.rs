@@ -1,8 +1,10 @@
 use crate::app::state::State;
 use crate::app::terminal::Terminal;
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use std::cmp;
 use std::convert::TryFrom;
+use std::iter;
 use tui::{layout, style, text, widgets};
 
 const COMMIT_INFO_INNER_HEIGHT: u16 = 2;
@@ -10,29 +12,47 @@ const COMMIT_INFO_OUTER_HEIGHT: u16 = COMMIT_INFO_INNER_HEIGHT + 2;
 const COMMIT_INFO_HORIZONTAL_PADDING: u16 = 1;
 const NAVI_WIDTH: u16 = 3;
 
+static BINARY_ALERT_TEXT: Lazy<Vec<text::Spans>> = Lazy::new(|| {
+    vec![
+        text::Spans::from(vec![text::Span::styled(
+            "╭──────────────────────────────────────────────╮",
+            style::Style::default().add_modifier(style::Modifier::DIM),
+        )]),
+        text::Spans::from(vec![
+            text::Span::styled(
+                "│",
+                style::Style::default().add_modifier(style::Modifier::DIM),
+            ),
+            text::Span::raw(" Note: binary data is not shown in a terminal "),
+            text::Span::styled(
+                "│",
+                style::Style::default().add_modifier(style::Modifier::DIM),
+            ),
+        ]),
+        text::Spans::from(vec![text::Span::styled(
+            "╰──────────────────────────────────────────────╯",
+            style::Style::default().add_modifier(style::Modifier::DIM),
+        )]),
+    ]
+});
+
 #[derive(Debug)]
 pub struct Dashboard<'a> {
     commit_info_title: text::Spans<'a>,
-    commit_info_text: Vec<text::Spans<'a>>,
-    left_navi_text: Vec<text::Spans<'a>>,
-    right_navi_text: Vec<text::Spans<'a>>,
-    diff_text: Vec<text::Spans<'a>>,
+    commit_info_paragraph: widgets::Paragraph<'a>,
+    left_navi_paragraph: widgets::Paragraph<'a>,
+    right_navi_paragraph: widgets::Paragraph<'a>,
+    diff_paragraph: widgets::Paragraph<'a>,
 }
 
 impl<'a> Dashboard<'a> {
     pub fn new(state: &'a State) -> Self {
-        let left_navi_text = get_left_navi_text(&state);
-        let right_navi_text = get_right_navi_text(&state);
-        let commit_info_title = get_commit_info_title(&state);
-        let commit_info_text = get_commit_info_text(&state);
-        let diff_text = get_diff_text(&state);
-
         Self {
-            commit_info_title,
-            commit_info_text,
-            left_navi_text,
-            right_navi_text,
-            diff_text,
+            commit_info_title: Self::get_commit_info_title(&state),
+            commit_info_paragraph: Self::get_commit_info_paragraph(&state),
+            left_navi_paragraph: Self::get_left_navi_paragraph(&state),
+            right_navi_paragraph: Self::get_right_navi_paragraph(&state),
+            diff_paragraph: Self::get_diff_paragraph(&state),
         }
     }
 
@@ -69,11 +89,8 @@ impl<'a> Dashboard<'a> {
                 .constraints([layout::Constraint::Min(0)].as_ref())
                 .split(horizontal_chunks[1])[0];
 
-            let left_navi_paragraph = widgets::Paragraph::new(self.left_navi_text);
-            frame.render_widget(left_navi_paragraph, left_navi_chunk);
-
-            let right_navi_paragraph = widgets::Paragraph::new(self.right_navi_text);
-            frame.render_widget(right_navi_paragraph, right_navi_chunk);
+            frame.render_widget(self.left_navi_paragraph, left_navi_chunk);
+            frame.render_widget(self.right_navi_paragraph, right_navi_chunk);
 
             let commit_info_block = widgets::Block::default()
                 .title(self.commit_info_title)
@@ -91,14 +108,12 @@ impl<'a> Dashboard<'a> {
                     .as_ref(),
                 )
                 .split(commit_info_block.inner(commit_info_chunk))[1];
-            let commit_info_paragraph = widgets::Paragraph::new(self.commit_info_text);
 
             frame.render_widget(commit_info_block, commit_info_chunk);
-            frame.render_widget(commit_info_paragraph, commit_info_inner_chunk);
+            frame.render_widget(self.commit_info_paragraph, commit_info_inner_chunk);
 
             // diff
-            let diff_paragraph = widgets::Paragraph::new(self.diff_text);
-            frame.render_widget(diff_paragraph, diff_chunk);
+            frame.render_widget(self.diff_paragraph, diff_chunk);
         })?;
 
         Ok(())
@@ -109,158 +124,174 @@ impl<'a> Dashboard<'a> {
         let commit_info_outer_height: isize = isize::try_from(COMMIT_INFO_OUTER_HEIGHT).unwrap();
         usize::try_from(cmp::max(0, terminal_height - commit_info_outer_height)).unwrap()
     }
-}
 
-fn get_left_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let backward_symbol = if state.point().is_earliest() {
-        ""
-    } else {
-        "<<"
-    };
-    let up_symbol = if state.can_move_up() { "^" } else { "" };
-    let down_symbol = if state.can_move_down() { "v" } else { "" };
+    fn get_left_navi_paragraph(state: &'a State) -> widgets::Paragraph<'a> {
+        let backward_symbol = if state.point().is_earliest() {
+            ""
+        } else {
+            "<<"
+        };
+        let up_symbol = if state.can_move_up() { "^" } else { "" };
+        let down_symbol = if state.can_move_down() { "v" } else { "" };
 
-    vec![
-        text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
-    ]
-}
+        widgets::Paragraph::new(vec![
+            text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:<1$}", backward_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
+        ])
+    }
 
-fn get_right_navi_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let forward_symbol = if state.point().is_latest() { "" } else { ">>" };
-    let up_symbol = if state.can_move_up() { "^" } else { "" };
-    let down_symbol = if state.can_move_down() { "v" } else { "" };
+    fn get_right_navi_paragraph(state: &'a State) -> widgets::Paragraph<'a> {
+        let forward_symbol = if state.point().is_latest() { "" } else { ">>" };
+        let up_symbol = if state.can_move_up() { "^" } else { "" };
+        let down_symbol = if state.can_move_down() { "v" } else { "" };
 
-    vec![
-        text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
-        text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
-    ]
-}
+        widgets::Paragraph::new(vec![
+            text::Spans::from(format!("{:^1$}", up_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:>1$}", forward_symbol, usize::from(NAVI_WIDTH))),
+            text::Spans::from(format!("{:^1$}", down_symbol, usize::from(NAVI_WIDTH))),
+        ])
+    }
 
-fn get_commit_info_title<'a>(state: &'a State) -> text::Spans<'a> {
-    let short_id = state.point().commit().short_id();
-    let references = state.point().commit().references();
+    fn get_commit_info_title(state: &'a State) -> text::Spans<'a> {
+        let short_id = state.point().commit().short_id();
+        let references = state.point().commit().references();
 
-    // TODO:
-    //   - option: date format (default: "[%Y-%m-%d]")
-    //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
-    //   - option: author (default) or committer
-    let author_name = format!("@{}", state.point().commit().author_name());
-    let author_date = state
-        .point()
-        .commit()
-        .author_date()
-        .format("[%Y-%m-%d]")
-        .to_string();
-    let _committer_name = format!("@{}", state.point().commit().committer_name());
-    let _committer_date = state
-        .point()
-        .commit()
-        .committer_date()
-        .format("[%Y-%m-%d]")
-        .to_string();
+        // TODO:
+        //   - option: date format (default: "[%Y-%m-%d]")
+        //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
+        //   - option: author (default) or committer
+        let author_name = format!("@{}", state.point().commit().author_name());
+        let author_date = state
+            .point()
+            .commit()
+            .author_date()
+            .format("[%Y-%m-%d]")
+            .to_string();
+        let _committer_name = format!("@{}", state.point().commit().committer_name());
+        let _committer_date = state
+            .point()
+            .commit()
+            .committer_date()
+            .format("[%Y-%m-%d]")
+            .to_string();
 
-    let mut commit_info_title = vec![];
-    {
-        commit_info_title.push(text::Span::raw("[ "));
-        commit_info_title.push(text::Span::styled(
-            short_id,
-            style::Style::default().fg(style::Color::Yellow),
-        ));
-        commit_info_title.push(text::Span::raw(" "));
-        commit_info_title.push(text::Span::styled(
-            author_date,
-            style::Style::default().fg(style::Color::LightMagenta),
-        ));
-        commit_info_title.push(text::Span::raw(" "));
-        if !references.is_empty() {
-            commit_info_title.push(text::Span::raw("("));
-            for name in references.head_names().into_iter() {
-                commit_info_title.push(text::Span::raw(name));
-                commit_info_title.push(text::Span::raw(", "));
-            }
-            for name in references.local_branch_names().into_iter() {
-                commit_info_title.push(text::Span::raw(name));
-                commit_info_title.push(text::Span::raw(", "));
-            }
-            for name in references.remote_branch_names().into_iter() {
-                commit_info_title.push(text::Span::raw(name));
-                commit_info_title.push(text::Span::raw(", "));
-            }
-            for name in references.tag_names().into_iter() {
-                commit_info_title.push(text::Span::raw(name));
-                commit_info_title.push(text::Span::raw(", "));
-            }
-            commit_info_title.pop();
-            commit_info_title.push(text::Span::raw(")"));
+        let mut commit_info_title = vec![];
+        {
+            commit_info_title.push(text::Span::raw("[ "));
+            commit_info_title.push(text::Span::styled(
+                short_id,
+                style::Style::default().fg(style::Color::Yellow),
+            ));
             commit_info_title.push(text::Span::raw(" "));
-        }
-        commit_info_title.push(text::Span::styled(
-            author_name,
-            style::Style::default().fg(style::Color::Cyan),
-        ));
-        commit_info_title.push(text::Span::raw(" ]"));
-    }
-
-    text::Spans::from(commit_info_title)
-}
-
-fn get_commit_info_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let commit_summary = text::Spans::from(vec![text::Span::raw(state.point().commit().summary())]);
-    let change_status = text::Spans(vec![text::Span::raw(state.point().diff().status())]);
-
-    vec![commit_summary, change_status]
-}
-
-fn get_diff_text<'a>(state: &'a State) -> Vec<text::Spans<'a>> {
-    let mut diff_text = vec![];
-    let max_line_number_len = state.max_line_number_len();
-    for line in state.point().diff().lines().iter().skip(state.line_index()) {
-        let old_line_number = format!(
-            "{:>1$}",
-            if let Some(number) = line.old_line_number() {
-                number.to_string()
-            } else {
-                String::new()
-            },
-            max_line_number_len,
-        );
-        let new_line_number = format!(
-            "{:>1$}",
-            if let Some(number) = line.new_line_number() {
-                number.to_string()
-            } else {
-                String::new()
-            },
-            max_line_number_len,
-        );
-        let sign = line.sign();
-        let style = line.style();
-
-        let mut spans = vec![
-            text::Span::raw(old_line_number),
-            text::Span::raw(" "),
-            text::Span::raw(new_line_number),
-            text::Span::raw(" │"),
-            text::Span::styled(sign, style),
-            text::Span::styled(" ", style),
-        ];
-        for part in line.parts().iter() {
-            // TODO:
-            //   - option: --emphasize-diff (default: false)
-            let _style = part.emphasize(style); // if true
-            let style = style; // if false
-            spans.push(text::Span::styled(part.text(), style));
+            commit_info_title.push(text::Span::styled(
+                author_date,
+                style::Style::default().fg(style::Color::LightMagenta),
+            ));
+            commit_info_title.push(text::Span::raw(" "));
+            if !references.is_empty() {
+                commit_info_title.push(text::Span::raw("("));
+                for name in references.head_names().into_iter() {
+                    commit_info_title.push(text::Span::raw(name));
+                    commit_info_title.push(text::Span::raw(", "));
+                }
+                for name in references.local_branch_names().into_iter() {
+                    commit_info_title.push(text::Span::raw(name));
+                    commit_info_title.push(text::Span::raw(", "));
+                }
+                for name in references.remote_branch_names().into_iter() {
+                    commit_info_title.push(text::Span::raw(name));
+                    commit_info_title.push(text::Span::raw(", "));
+                }
+                for name in references.tag_names().into_iter() {
+                    commit_info_title.push(text::Span::raw(name));
+                    commit_info_title.push(text::Span::raw(", "));
+                }
+                commit_info_title.pop();
+                commit_info_title.push(text::Span::raw(")"));
+                commit_info_title.push(text::Span::raw(" "));
+            }
+            commit_info_title.push(text::Span::styled(
+                author_name,
+                style::Style::default().fg(style::Color::Cyan),
+            ));
+            commit_info_title.push(text::Span::raw(" ]"));
         }
 
-        let spans = text::Spans::from(spans);
-
-        diff_text.push(spans);
+        text::Spans::from(commit_info_title)
     }
 
-    diff_text
+    fn get_commit_info_paragraph(state: &'a State) -> widgets::Paragraph<'a> {
+        let commit_summary =
+            text::Spans::from(vec![text::Span::raw(state.point().commit().summary())]);
+        let change_status = text::Spans(vec![text::Span::raw(state.point().diff().status())]);
+
+        widgets::Paragraph::new(vec![commit_summary, change_status])
+    }
+
+    fn get_diff_paragraph(state: &'a State) -> widgets::Paragraph<'a> {
+        if let Some(lines) = state.point().diff().lines() {
+            let mut diff_text = vec![];
+            let max_line_number_len = state.max_line_number_len();
+            for line in lines.iter().skip(state.line_index()) {
+                let old_line_number = format!(
+                    "{:>1$}",
+                    if let Some(number) = line.old_line_number() {
+                        number.to_string()
+                    } else {
+                        String::new()
+                    },
+                    max_line_number_len,
+                );
+                let new_line_number = format!(
+                    "{:>1$}",
+                    if let Some(number) = line.new_line_number() {
+                        number.to_string()
+                    } else {
+                        String::new()
+                    },
+                    max_line_number_len,
+                );
+                let sign = line.sign();
+                let style = line.style();
+
+                let mut spans = vec![
+                    text::Span::raw(old_line_number),
+                    text::Span::raw(" "),
+                    text::Span::raw(new_line_number),
+                    text::Span::raw(" │"),
+                    text::Span::styled(sign, style),
+                    text::Span::styled(" ", style),
+                ];
+                for part in line.parts().iter() {
+                    // TODO:
+                    //   - option: --emphasize-diff (default: false)
+                    let _style = part.emphasize(style); // if true
+                    let style = style; // if false
+                    spans.push(text::Span::styled(part.text(), style));
+                }
+
+                let spans = text::Spans::from(spans);
+
+                diff_text.push(spans);
+            }
+            widgets::Paragraph::new(diff_text)
+        } else {
+            // for a binary file
+            let mut alert_text = vec![];
+
+            let diff_height = Self::diff_height(state.terminal_height());
+            let offset = diff_height.saturating_sub(BINARY_ALERT_TEXT.len()) / 2;
+            alert_text.append(
+                &mut iter::repeat(text::Spans::from(vec![]))
+                    .take(offset)
+                    .collect(),
+            );
+            alert_text.append(&mut BINARY_ALERT_TEXT.clone());
+
+            widgets::Paragraph::new(alert_text).alignment(layout::Alignment::Center)
+        }
+    }
 }

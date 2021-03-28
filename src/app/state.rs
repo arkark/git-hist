@@ -215,6 +215,10 @@ impl<'a> State<'a> {
         )
     }
 
+    pub fn terminal_height(&self) -> usize {
+        self.terminal_height
+    }
+
     pub fn update_terminal_height(self, terminal_height: usize) -> Self {
         State::new(
             self.point,
