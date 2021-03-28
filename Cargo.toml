@@ -6,7 +6,7 @@ description = "A CLI tool to quickly browse the git history of files on a termin
 repository = "https://github.com/arkark/git-hist"
 readme = "README.md"
 categories = ["command-line-utilities"]
-keywords = ["git", "cli", "terminal"]
+keywords = ["git", "cli", "terminal", "diff"]
 edition = "2018"
 license = "MIT"
 
