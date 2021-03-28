@@ -4,7 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/git-hist.svg)](https://crates.io/crates/git-hist)
 [![license: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://github.com/arkark/git-hist/blob/master/LICENSE)
 
-A CLI to browse the history of files in any git repository **on a terminal**. This project is inspired by [git-history](https://github.com/pomber/git-history).
+A CLI tool to quickly browse the git history of files **on a terminal**. This project is inspired by [git-history](https://github.com/pomber/git-history).
 
 <div align="center">
     <img src="screenshots/screenshot_01.png" />
