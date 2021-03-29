@@ -1,5 +1,6 @@
 use crate::app::state::State;
 use crate::app::terminal::Terminal;
+use crate::args::UserType;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::iter;
@@ -159,24 +160,23 @@ impl<'a> Dashboard<'a> {
         };
         let references = state.point().commit().references();
 
+        let name = format!(
+            "@{}",
+            match state.args().user_for_name {
+                UserType::Author => state.point().commit().author_name(),
+                UserType::Committer => state.point().commit().committer_name(),
+            }
+        );
+
         // TODO:
         //   - option: date format (default: "[%Y-%m-%d]")
         //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
-        //   - option: author (default) or committer
-        let author_name = format!("@{}", state.point().commit().author_name());
-        let author_date = state
-            .point()
-            .commit()
-            .author_date()
-            .format("[%Y-%m-%d]")
-            .to_string();
-        let _committer_name = format!("@{}", state.point().commit().committer_name());
-        let _committer_date = state
-            .point()
-            .commit()
-            .committer_date()
-            .format("[%Y-%m-%d]")
-            .to_string();
+        let date = (match state.args().user_for_name {
+            UserType::Author => state.point().commit().author_date(),
+            UserType::Committer => state.point().commit().committer_date(),
+        })
+        .format("[%Y-%m-%d]")
+        .to_string();
 
         let mut commit_info_title = vec![];
         {
@@ -187,7 +187,7 @@ impl<'a> Dashboard<'a> {
             ));
             commit_info_title.push(text::Span::raw(" "));
             commit_info_title.push(text::Span::styled(
-                author_date,
+                date,
                 style::Style::default().fg(style::Color::LightMagenta),
             ));
             commit_info_title.push(text::Span::raw(" "));
@@ -214,7 +214,7 @@ impl<'a> Dashboard<'a> {
                 commit_info_title.push(text::Span::raw(" "));
             }
             commit_info_title.push(text::Span::styled(
-                author_name,
+                name,
                 style::Style::default().fg(style::Color::Cyan),
             ));
             commit_info_title.push(text::Span::raw(" ]"));

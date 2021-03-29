@@ -4,6 +4,14 @@ use clap::{App, Arg};
 pub struct Args {
     pub file_path: String,
     pub should_use_full_commit_hash: bool,
+    pub user_for_name: UserType,
+    pub user_for_date: UserType,
+}
+
+#[derive(Debug)]
+pub enum UserType {
+    Author,
+    Committer,
 }
 
 impl Args {
@@ -30,19 +38,47 @@ impl Args {
                     .about("Show full commit hashes instead of abbreviated commit hashes"),
             )
             .arg(
+                Arg::new("name-of")
+                    .long("name-of")
+                    .value_name("user")
+                    .possible_values(&["author", "committer"])
+                    .default_value("author")
+                    .about("Use whether authors or committers for names"),
+            )
+            .arg(
+                Arg::new("date-of")
+                    .long("date-of")
+                    .value_name("user")
+                    .possible_values(&["author", "committer"])
+                    .default_value("author")
+                    .about("Use whether authors or committers for dates"),
+            )
+            .arg(
                 Arg::new("file")
                     .about("Set a target file path")
                     .required(true),
             )
             .get_matches();
 
-        let file_path = matches.value_of("file").unwrap();
+        let file_path = String::from(matches.value_of("file").unwrap());
+
         let should_use_full_commit_hash = matches.is_present("full-hash");
-        dbg!(should_use_full_commit_hash);
+        let user_for_name = if matches.value_of("name-of").unwrap() == "author" {
+            UserType::Author
+        } else {
+            UserType::Committer
+        };
+        let user_for_date = if matches.value_of("date-of").unwrap() == "author" {
+            UserType::Author
+        } else {
+            UserType::Committer
+        };
 
         Args {
-            file_path: String::from(file_path),
+            file_path,
             should_use_full_commit_hash,
+            user_for_name,
+            user_for_date,
         }
     }
 }
