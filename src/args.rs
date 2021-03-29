@@ -12,8 +12,20 @@ impl Args {
             .about(env!("CARGO_PKG_DESCRIPTION"))
             .setting(clap::AppSettings::ColoredHelp)
             .arg(
+                Arg::new("help")
+                    .long("help")
+                    .short('h')
+                    .about("Print help information"),
+            )
+            .arg(
+                Arg::new("version")
+                    .long("version")
+                    .short('v')
+                    .about("Print version information"),
+            )
+            .arg(
                 Arg::new("file")
-                    .about("Sets a target file path")
+                    .about("Set a target file path")
                     .required(true),
             )
             .get_matches();
