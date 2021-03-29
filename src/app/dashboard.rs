@@ -263,10 +263,11 @@ impl<'a> Dashboard<'a> {
                     text::Span::styled(" ", style),
                 ];
                 for part in line.parts().iter() {
-                    // TODO:
-                    //   - option: --emphasize-diff (default: false)
-                    let _style = part.emphasize(style); // if true
-                    let style = style; // if false
+                    let style = if state.args().should_emphasize_diff {
+                        part.emphasize(style)
+                    } else {
+                        style
+                    };
                     spans.push(text::Span::styled(part.text(), style));
                 }
 

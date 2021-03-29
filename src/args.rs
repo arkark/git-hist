@@ -5,6 +5,7 @@ pub struct Args {
     pub file_path: String,
     pub should_use_full_commit_hash: bool,
     pub beyond_last_line: bool,
+    pub should_emphasize_diff: bool,
     pub user_for_name: UserType,
     pub user_for_date: UserType,
     pub date_format: String,
@@ -45,6 +46,11 @@ impl Args {
                     .about("Set whether the view will scroll beyond the last line"),
             )
             .arg(
+                Arg::new("emphasize-diff")
+                    .long("emphasize-diff")
+                    .about("Set whether the view will emphasize different parts"),
+            )
+            .arg(
                 Arg::new("name-of")
                     .long("name-of")
                     .value_name("user")
@@ -79,6 +85,7 @@ impl Args {
 
         let should_use_full_commit_hash = matches.is_present("full-hash");
         let beyond_last_line = matches.is_present("beyond-last-line");
+        let should_emphasize_diff = matches.is_present("emphasize-diff");
         let user_for_name = if matches.value_of("name-of").unwrap() == "author" {
             UserType::Author
         } else {
@@ -95,6 +102,7 @@ impl Args {
             file_path,
             should_use_full_commit_hash,
             beyond_last_line,
+            should_emphasize_diff,
             user_for_name,
             user_for_date,
             date_format,
