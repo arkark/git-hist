@@ -56,15 +56,11 @@ impl<'a> State<'a> {
     }
 
     pub fn can_move_up(&self) -> bool {
-        self.point
-            .diff()
-            .can_move_up(self.line_index, self.terminal_height)
+        self.point.diff().can_move_up(self.line_index, &self)
     }
 
     pub fn can_move_down(&self) -> bool {
-        self.point
-            .diff()
-            .can_move_down(self.line_index, self.terminal_height)
+        self.point.diff().can_move_down(self.line_index, &self)
     }
 
     pub fn backward_commit(self, history: &'a History) -> Self {
@@ -154,7 +150,7 @@ impl<'a> State<'a> {
             self.line_index,
             cmp::max(
                 self.line_index.saturating_sub(diff_height),
-                self.point.diff().allowed_min_index(self.terminal_height),
+                self.point.diff().allowed_min_index(&self),
             ),
         );
 
@@ -174,7 +170,7 @@ impl<'a> State<'a> {
             self.line_index,
             cmp::min(
                 self.line_index + diff_height,
-                self.point.diff().allowed_max_index(self.terminal_height),
+                self.point.diff().allowed_max_index(&self),
             ),
         );
 
@@ -188,10 +184,7 @@ impl<'a> State<'a> {
     }
 
     pub fn scroll_to_top(self) -> Self {
-        let line_index = cmp::min(
-            self.line_index,
-            self.point.diff().allowed_min_index(self.terminal_height),
-        );
+        let line_index = cmp::min(self.line_index, self.point.diff().allowed_min_index(&self));
 
         State::new(
             self.point,
@@ -203,10 +196,7 @@ impl<'a> State<'a> {
     }
 
     pub fn scroll_to_bottom(self) -> Self {
-        let line_index = cmp::max(
-            self.line_index,
-            self.point.diff().allowed_max_index(self.terminal_height),
-        );
+        let line_index = cmp::max(self.line_index, self.point.diff().allowed_max_index(&self));
 
         State::new(
             self.point,

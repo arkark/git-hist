@@ -1,4 +1,5 @@
 use crate::app::dashboard::Dashboard;
+use crate::app::state::State;
 use git2::{Delta, DiffDelta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
@@ -121,32 +122,31 @@ impl<'a> Diff<'a> {
             .len()
     }
 
-    pub fn allowed_min_index(&self, _terminal_height: usize) -> usize {
+    pub fn allowed_min_index(&self, _state: &State) -> usize {
         0
     }
 
-    pub fn allowed_max_index(&self, terminal_height: usize) -> usize {
+    pub fn allowed_max_index(&self, state: &State) -> usize {
         if let Some(lines) = self.lines() {
             let diff_length = lines.len();
-            let diff_height = Dashboard::diff_height(terminal_height);
+            let diff_height = Dashboard::diff_height(state.terminal_height());
 
-            // TODO:
-            //   - option: beyond-last-line (default: false)
-            //     - whether the diff view will scroll beyond the last line
-            //     - true:  diff_length - 1
-            //     - false: diff_length - max(1, diff_height)
-            diff_length.saturating_sub(cmp::max(1, diff_height))
+            if state.args().beyond_last_line {
+                diff_length.saturating_sub(1)
+            } else {
+                diff_length.saturating_sub(cmp::max(1, diff_height))
+            }
         } else {
             0
         }
     }
 
-    pub fn can_move_up(&self, index: usize, terminal_height: usize) -> bool {
-        index > self.allowed_min_index(terminal_height)
+    pub fn can_move_up(&self, index: usize, state: &State) -> bool {
+        index > self.allowed_min_index(state)
     }
 
-    pub fn can_move_down(&self, index: usize, terminal_height: usize) -> bool {
-        index < self.allowed_max_index(terminal_height)
+    pub fn can_move_down(&self, index: usize, state: &State) -> bool {
+        index < self.allowed_max_index(state)
     }
 
     pub fn nearest_old_index_pair(&self, index: usize) -> IndexPair {
