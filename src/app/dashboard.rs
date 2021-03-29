@@ -168,14 +168,11 @@ impl<'a> Dashboard<'a> {
             }
         );
 
-        // TODO:
-        //   - option: date format (default: "[%Y-%m-%d]")
-        //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
         let date = (match state.args().user_for_name {
             UserType::Author => state.point().commit().author_date(),
             UserType::Committer => state.point().commit().committer_date(),
         })
-        .format("[%Y-%m-%d]")
+        .format(&state.args().date_format)
         .to_string();
 
         let mut commit_info_title = vec![];

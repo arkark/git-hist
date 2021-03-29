@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{App, Arg, ArgSettings};
 
 #[derive(Debug)]
 pub struct Args {
@@ -7,6 +7,7 @@ pub struct Args {
     pub beyond_last_line: bool,
     pub user_for_name: UserType,
     pub user_for_date: UserType,
+    pub date_format: String,
 }
 
 #[derive(Debug)]
@@ -60,6 +61,14 @@ impl Args {
                     .about("Use whether authors or committers for dates"),
             )
             .arg(
+                Arg::new("date-format")
+                    .long("date-format")
+                    .value_name("format")
+                    .default_value("[%Y-%m-%d]")
+                    .setting(ArgSettings::AllowEmptyValues)
+                    .about("Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html"),
+            )
+            .arg(
                 Arg::new("file")
                     .about("Set a target file path")
                     .required(true),
@@ -80,6 +89,7 @@ impl Args {
         } else {
             UserType::Committer
         };
+        let date_format = String::from(matches.value_of("date-format").unwrap());
 
         Args {
             file_path,
@@ -87,6 +97,7 @@ impl Args {
             beyond_last_line,
             user_for_name,
             user_for_date,
+            date_format,
         }
     }
 }
