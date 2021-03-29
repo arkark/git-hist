@@ -152,7 +152,11 @@ impl<'a> Dashboard<'a> {
     }
 
     fn get_commit_info_title(state: &'a State) -> text::Spans<'a> {
-        let short_id = state.point().commit().short_id();
+        let hash = if state.args().should_use_full_commit_hash {
+            state.point().commit().long_id()
+        } else {
+            state.point().commit().short_id()
+        };
         let references = state.point().commit().references();
 
         // TODO:
@@ -178,7 +182,7 @@ impl<'a> Dashboard<'a> {
         {
             commit_info_title.push(text::Span::raw("[ "));
             commit_info_title.push(text::Span::styled(
-                short_id,
+                hash,
                 style::Style::default().fg(style::Color::Yellow),
             ));
             commit_info_title.push(text::Span::raw(" "));

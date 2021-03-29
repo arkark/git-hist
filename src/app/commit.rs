@@ -9,6 +9,7 @@ const HEAD_NAME: &str = "HEAD";
 pub struct Commit<'a> {
     oid: Oid,
     short_id: String,
+    long_id: String,
     author_name: String,
     author_date: chrono::DateTime<chrono::Local>,
     committer_name: String,
@@ -28,6 +29,7 @@ impl<'a> Commit<'a> {
             .as_str()
             .unwrap_or_default()
             .to_string();
+        let long_id = format!("{}", oid);
         let author = commit.author().name().unwrap_or_default().to_string();
         let author_date = chrono::DateTime::<chrono::Local>::from(
             chrono::Utc.timestamp(commit.author().when().seconds(), 0),
@@ -41,6 +43,7 @@ impl<'a> Commit<'a> {
         Self {
             oid,
             short_id,
+            long_id,
             author_name: author,
             author_date,
             committer_name: committer,
@@ -53,6 +56,10 @@ impl<'a> Commit<'a> {
 
     pub fn short_id(&self) -> &str {
         &self.short_id
+    }
+
+    pub fn long_id(&self) -> &str {
+        &self.long_id
     }
 
     pub fn author_name(&self) -> &str {

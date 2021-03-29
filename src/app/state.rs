@@ -1,6 +1,7 @@
 use crate::app::dashboard::Dashboard;
 use crate::app::history::{History, TurningPoint};
 use crate::app::terminal::Terminal;
+use crate::args::Args;
 use std::cmp;
 
 pub struct State<'a> {
@@ -8,6 +9,7 @@ pub struct State<'a> {
     line_index: usize,
     max_line_number_len: usize,
     terminal_height: usize,
+    args: &'a Args,
 }
 
 impl<'a> State<'a> {
@@ -16,21 +18,29 @@ impl<'a> State<'a> {
         line_index: usize,
         max_line_number_len: usize,
         terminal_height: usize,
+        args: &'a Args,
     ) -> Self {
         Self {
             point,
             line_index,
             max_line_number_len,
             terminal_height,
+            args,
         }
     }
 
-    pub fn first(history: &'a History<'a>, terminal: &Terminal) -> Self {
+    pub fn first(history: &'a History<'a>, terminal: &Terminal, args: &'a Args) -> Self {
         let point = history.latest().unwrap();
         let line_index = 0;
         let max_line_number_len = point.diff().max_line_number_len();
         let terminal_height = terminal.height();
-        Self::new(point, line_index, max_line_number_len, terminal_height)
+        Self::new(
+            point,
+            line_index,
+            max_line_number_len,
+            terminal_height,
+            args,
+        )
     }
 
     pub fn point(&self) -> &TurningPoint {
@@ -75,6 +85,7 @@ impl<'a> State<'a> {
                 line_index,
                 max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -99,6 +110,7 @@ impl<'a> State<'a> {
                 line_index,
                 max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -113,6 +125,7 @@ impl<'a> State<'a> {
                 line_index,
                 self.max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -127,6 +140,7 @@ impl<'a> State<'a> {
                 line_index,
                 self.max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -149,6 +163,7 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -168,6 +183,7 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -182,6 +198,7 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -196,6 +213,7 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -209,6 +227,11 @@ impl<'a> State<'a> {
             self.line_index,
             self.max_line_number_len,
             terminal_height,
+            self.args,
         )
+    }
+
+    pub fn args(&self) -> &'a Args {
+        self.args
     }
 }
