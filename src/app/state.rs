@@ -1,6 +1,7 @@
 use crate::app::dashboard::Dashboard;
 use crate::app::history::{History, TurningPoint};
 use crate::app::terminal::Terminal;
+use crate::args::Args;
 use std::cmp;
 
 pub struct State<'a> {
@@ -8,6 +9,7 @@ pub struct State<'a> {
     line_index: usize,
     max_line_number_len: usize,
     terminal_height: usize,
+    args: &'a Args,
 }
 
 impl<'a> State<'a> {
@@ -16,21 +18,29 @@ impl<'a> State<'a> {
         line_index: usize,
         max_line_number_len: usize,
         terminal_height: usize,
+        args: &'a Args,
     ) -> Self {
         Self {
             point,
             line_index,
             max_line_number_len,
             terminal_height,
+            args,
         }
     }
 
-    pub fn first(history: &'a History<'a>, terminal: &Terminal) -> Self {
+    pub fn first(history: &'a History<'a>, terminal: &Terminal, args: &'a Args) -> Self {
         let point = history.latest().unwrap();
         let line_index = 0;
         let max_line_number_len = point.diff().max_line_number_len();
         let terminal_height = terminal.height();
-        Self::new(point, line_index, max_line_number_len, terminal_height)
+        Self::new(
+            point,
+            line_index,
+            max_line_number_len,
+            terminal_height,
+            args,
+        )
     }
 
     pub fn point(&self) -> &TurningPoint {
@@ -46,15 +56,11 @@ impl<'a> State<'a> {
     }
 
     pub fn can_move_up(&self) -> bool {
-        self.point
-            .diff()
-            .can_move_up(self.line_index, self.terminal_height)
+        self.point.diff().can_move_up(self.line_index, &self)
     }
 
     pub fn can_move_down(&self) -> bool {
-        self.point
-            .diff()
-            .can_move_down(self.line_index, self.terminal_height)
+        self.point.diff().can_move_down(self.line_index, &self)
     }
 
     pub fn backward_commit(self, history: &'a History) -> Self {
@@ -75,6 +81,7 @@ impl<'a> State<'a> {
                 line_index,
                 max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -99,6 +106,7 @@ impl<'a> State<'a> {
                 line_index,
                 max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -113,6 +121,7 @@ impl<'a> State<'a> {
                 line_index,
                 self.max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -127,6 +136,7 @@ impl<'a> State<'a> {
                 line_index,
                 self.max_line_number_len,
                 self.terminal_height,
+                self.args,
             )
         } else {
             self
@@ -140,7 +150,7 @@ impl<'a> State<'a> {
             self.line_index,
             cmp::max(
                 self.line_index.saturating_sub(diff_height),
-                self.point.diff().allowed_min_index(self.terminal_height),
+                self.point.diff().allowed_min_index(&self),
             ),
         );
 
@@ -149,6 +159,7 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -159,7 +170,7 @@ impl<'a> State<'a> {
             self.line_index,
             cmp::min(
                 self.line_index + diff_height,
-                self.point.diff().allowed_max_index(self.terminal_height),
+                self.point.diff().allowed_max_index(&self),
             ),
         );
 
@@ -168,34 +179,31 @@ impl<'a> State<'a> {
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
     pub fn scroll_to_top(self) -> Self {
-        let line_index = cmp::min(
-            self.line_index,
-            self.point.diff().allowed_min_index(self.terminal_height),
-        );
+        let line_index = cmp::min(self.line_index, self.point.diff().allowed_min_index(&self));
 
         State::new(
             self.point,
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
     pub fn scroll_to_bottom(self) -> Self {
-        let line_index = cmp::max(
-            self.line_index,
-            self.point.diff().allowed_max_index(self.terminal_height),
-        );
+        let line_index = cmp::max(self.line_index, self.point.diff().allowed_max_index(&self));
 
         State::new(
             self.point,
             line_index,
             self.max_line_number_len,
             self.terminal_height,
+            self.args,
         )
     }
 
@@ -209,6 +217,11 @@ impl<'a> State<'a> {
             self.line_index,
             self.max_line_number_len,
             terminal_height,
+            self.args,
         )
+    }
+
+    pub fn args(&self) -> &'a Args {
+        self.args
     }
 }

@@ -1,5 +1,6 @@
 use crate::app::state::State;
 use crate::app::terminal::Terminal;
+use crate::args::UserType;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::iter;
@@ -152,38 +153,38 @@ impl<'a> Dashboard<'a> {
     }
 
     fn get_commit_info_title(state: &'a State) -> text::Spans<'a> {
-        let short_id = state.point().commit().short_id();
+        let hash = if state.args().should_use_full_commit_hash {
+            state.point().commit().long_id()
+        } else {
+            state.point().commit().short_id()
+        };
         let references = state.point().commit().references();
 
-        // TODO:
-        //   - option: date format (default: "[%Y-%m-%d]")
-        //     - ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html
-        //   - option: author (default) or committer
-        let author_name = format!("@{}", state.point().commit().author_name());
-        let author_date = state
-            .point()
-            .commit()
-            .author_date()
-            .format("[%Y-%m-%d]")
-            .to_string();
-        let _committer_name = format!("@{}", state.point().commit().committer_name());
-        let _committer_date = state
-            .point()
-            .commit()
-            .committer_date()
-            .format("[%Y-%m-%d]")
-            .to_string();
+        let name = format!(
+            "@{}",
+            match state.args().user_for_name {
+                UserType::Author => state.point().commit().author_name(),
+                UserType::Committer => state.point().commit().committer_name(),
+            }
+        );
+
+        let date = (match state.args().user_for_name {
+            UserType::Author => state.point().commit().author_date(),
+            UserType::Committer => state.point().commit().committer_date(),
+        })
+        .format(&state.args().date_format)
+        .to_string();
 
         let mut commit_info_title = vec![];
         {
             commit_info_title.push(text::Span::raw("[ "));
             commit_info_title.push(text::Span::styled(
-                short_id,
+                hash,
                 style::Style::default().fg(style::Color::Yellow),
             ));
             commit_info_title.push(text::Span::raw(" "));
             commit_info_title.push(text::Span::styled(
-                author_date,
+                date,
                 style::Style::default().fg(style::Color::LightMagenta),
             ));
             commit_info_title.push(text::Span::raw(" "));
@@ -210,7 +211,7 @@ impl<'a> Dashboard<'a> {
                 commit_info_title.push(text::Span::raw(" "));
             }
             commit_info_title.push(text::Span::styled(
-                author_name,
+                name,
                 style::Style::default().fg(style::Color::Cyan),
             ));
             commit_info_title.push(text::Span::raw(" ]"));
@@ -262,10 +263,11 @@ impl<'a> Dashboard<'a> {
                     text::Span::styled(" ", style),
                 ];
                 for part in line.parts().iter() {
-                    // TODO:
-                    //   - option: --emphasize-diff (default: false)
-                    let _style = part.emphasize(style); // if true
-                    let style = style; // if false
+                    let style = if state.args().should_emphasize_diff {
+                        part.emphasize(style)
+                    } else {
+                        style
+                    };
                     spans.push(text::Span::styled(part.text(), style));
                 }
 

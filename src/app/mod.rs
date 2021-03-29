@@ -29,7 +29,7 @@ pub fn run(args: Args) -> Result<()> {
 
     (|| -> Result<()> {
         let mut terminal = Terminal::new()?;
-        let mut current_state = State::first(&history, &terminal);
+        let mut current_state = State::first(&history, &terminal, &args);
         let dashboard = Dashboard::new(&current_state);
         dashboard.draw(&mut terminal)?;
 
