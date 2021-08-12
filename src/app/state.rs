@@ -56,11 +56,11 @@ impl<'a> State<'a> {
     }
 
     pub fn can_move_up(&self) -> bool {
-        self.point.diff().can_move_up(self.line_index, &self)
+        self.point.diff().can_move_up(self.line_index, self)
     }
 
     pub fn can_move_down(&self) -> bool {
-        self.point.diff().can_move_down(self.line_index, &self)
+        self.point.diff().can_move_down(self.line_index, self)
     }
 
     pub fn backward_commit(self, history: &'a History) -> Self {

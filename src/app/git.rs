@@ -89,7 +89,7 @@ pub fn get_history<P: AsRef<path::Path>>(
         }
 
         delta.map(|delta| {
-            let commit = Commit::new(&git_commit, repo);
+            let commit = Commit::new(git_commit, repo);
             let diff = Diff::new(&delta, repo);
             TurningPoint::new(commit, diff)
         })

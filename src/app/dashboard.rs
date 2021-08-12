@@ -47,11 +47,11 @@ pub struct Dashboard<'a> {
 impl<'a> Dashboard<'a> {
     pub fn new(state: &'a State) -> Self {
         Self {
-            commit_info_title: Self::get_commit_info_title(&state),
-            commit_info_paragraph: Self::get_commit_info_paragraph(&state),
-            left_navi_paragraph: Self::get_left_navi_paragraph(&state),
-            right_navi_paragraph: Self::get_right_navi_paragraph(&state),
-            diff_paragraph: Self::get_diff_paragraph(&state),
+            commit_info_title: Self::get_commit_info_title(state),
+            commit_info_paragraph: Self::get_commit_info_paragraph(state),
+            left_navi_paragraph: Self::get_left_navi_paragraph(state),
+            right_navi_paragraph: Self::get_right_navi_paragraph(state),
+            diff_paragraph: Self::get_diff_paragraph(state),
         }
     }
 
