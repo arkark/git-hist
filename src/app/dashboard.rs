@@ -268,7 +268,7 @@ impl<'a> Dashboard<'a> {
                     } else {
                         style
                     };
-                    let text = part.text().replace("\t", "    ");
+                    let text = part.text().replace("\t", &state.args().tab_spaces);
                     spans.push(text::Span::styled(text, style));
                 }
 

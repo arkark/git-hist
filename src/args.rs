@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{App, Arg, ArgSettings};
 
 #[derive(Debug)]
@@ -9,6 +10,7 @@ pub struct Args {
     pub user_for_name: UserType,
     pub user_for_date: UserType,
     pub date_format: String,
+    pub tab_spaces: String,
 }
 
 #[derive(Debug)]
@@ -18,7 +20,7 @@ pub enum UserType {
 }
 
 impl Args {
-    pub fn load() -> Args {
+    pub fn load() -> Result<Args> {
         let matches = App::new(env!("CARGO_PKG_NAME"))
             .version(env!("CARGO_PKG_VERSION"))
             .about(env!("CARGO_PKG_DESCRIPTION"))
@@ -75,6 +77,13 @@ impl Args {
                     .about("Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html"),
             )
             .arg(
+                Arg::new("tab-size")
+                    .long("tab-size")
+                    .value_name("size")
+                    .default_value("4")
+                    .about("Set the number of spaces for a tab character (\\t)")
+            )
+            .arg(
                 Arg::new("file")
                     .about("Set a target file path")
                     .required(true),
@@ -98,7 +107,10 @@ impl Args {
         };
         let date_format = String::from(matches.value_of("date-format").unwrap());
 
-        Args {
+        let tab_size = matches.value_of_t::<usize>("tab-size")?;
+        let tab_spaces = " ".repeat(tab_size);
+
+        Ok(Args {
             file_path,
             should_use_full_commit_hash,
             beyond_last_line,
@@ -106,6 +118,7 @@ impl Args {
             user_for_name,
             user_for_date,
             date_format,
-        }
+            tab_spaces,
+        })
     }
 }
