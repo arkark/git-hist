@@ -268,7 +268,8 @@ impl<'a> Dashboard<'a> {
                     } else {
                         style
                     };
-                    spans.push(text::Span::styled(part.text(), style));
+                    let text = part.text().replace("\t", "    ");
+                    spans.push(text::Span::styled(text, style));
                 }
 
                 let spans = text::Spans::from(spans);
