@@ -56,4 +56,5 @@ OPTIONS:
         --date-format <format>    Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html [default: [%Y-%m-%d]]
         --date-of <user>          Use whether authors or committers for dates [default: author] [possible values: author, committer]
         --name-of <user>          Use whether authors or committers for names [default: author] [possible values: author, committer]
+        --tab-size <size>         Set the number of spaces for a tab character (\t) [default: 4]
 ```
