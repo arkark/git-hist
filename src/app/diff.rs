@@ -1,5 +1,6 @@
 use crate::app::dashboard::Dashboard;
 use crate::app::state::State;
+use crate::args::Args;
 use git2::{Delta, DiffDelta, Oid, Repository};
 use once_cell::sync::OnceCell;
 use similar::{ChangeTag, TextDiff};
@@ -16,10 +17,11 @@ pub struct Diff<'a> {
     has_new_binary_file: bool,
     lines: OnceCell<Vec<DiffLine>>,
     repo: &'a Repository,
+    args: &'a Args,
 }
 
 impl<'a> Diff<'a> {
-    pub fn new(diff_delta: &DiffDelta, repo: &'a Repository) -> Self {
+    pub fn new(diff_delta: &DiffDelta, repo: &'a Repository, args: &'a Args) -> Self {
         let old_file_oid = diff_delta.old_file().id();
         let new_file_oid = diff_delta.new_file().id();
         Self {
@@ -44,6 +46,7 @@ impl<'a> Diff<'a> {
                 .unwrap_or(true),
             lines: OnceCell::new(),
             repo,
+            args,
         }
     }
 
@@ -80,7 +83,9 @@ impl<'a> Diff<'a> {
                 text_diff.iter_inline_changes(op).map(|change| {
                     let parts = change
                         .iter_strings_lossy()
-                        .map(|(emphasized, text)| DiffLinePart::new(text, emphasized))
+                        .map(|(emphasized, text)| {
+                            DiffLinePart::new(text.replace("\t", &self.args.tab_spaces), emphasized)
+                        })
                         .collect();
                     DiffLine::new(change.old_index(), change.new_index(), change.tag(), parts)
                 })

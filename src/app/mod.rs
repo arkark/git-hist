@@ -17,7 +17,7 @@ use terminal::Terminal;
 
 pub fn run(args: Args) -> Result<()> {
     let repo = git::get_repository()?;
-    let history = git::get_history(&args.file_path, &repo)?;
+    let history = git::get_history(&args.file_path, &repo, &args)?;
 
     terminal::initialize()?;
 

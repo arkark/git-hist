@@ -1,6 +1,7 @@
 use crate::app::commit::Commit;
 use crate::app::diff::Diff;
 use crate::app::history::{History, TurningPoint};
+use crate::args::Args;
 use anyhow::{anyhow, Context, Result};
 use git2::{DiffFindOptions, ObjectType, Repository};
 use std::env;
@@ -15,10 +16,11 @@ pub fn get_repository() -> Result<Repository> {
     Ok(repo)
 }
 
-pub fn get_history<P: AsRef<path::Path>>(
+pub fn get_history<'a, P: AsRef<path::Path>>(
     file_path: P,
-    repo: &'_ Repository,
-) -> Result<History<'_>> {
+    repo: &'a Repository,
+    args: &'a Args,
+) -> Result<History<'a>> {
     let file_path_from_repository = env::current_dir()
         .unwrap()
         .join(&file_path)
@@ -90,7 +92,7 @@ pub fn get_history<P: AsRef<path::Path>>(
 
         delta.map(|delta| {
             let commit = Commit::new(git_commit, repo);
-            let diff = Diff::new(&delta, repo);
+            let diff = Diff::new(&delta, repo, args);
             TurningPoint::new(commit, diff)
         })
     }));
