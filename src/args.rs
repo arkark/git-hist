@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{App, Arg, ArgSettings};
+use clap::{App, Arg};
 
 #[derive(Debug)]
 pub struct Args {
@@ -73,7 +73,6 @@ impl Args {
                     .long("date-format")
                     .value_name("format")
                     .default_value("[%Y-%m-%d]")
-                    .setting(ArgSettings::AllowEmptyValues)
                     .about("Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html"),
             )
             .arg(
@@ -107,7 +106,7 @@ impl Args {
         };
         let date_format = String::from(matches.value_of("date-format").unwrap());
 
-        let tab_size = matches.value_of_t::<usize>("tab-size")?;
+        let tab_size = matches.value_of_t::<usize>("tab-size").ok().unwrap();
         let tab_spaces = " ".repeat(tab_size);
 
         Ok(Args {
