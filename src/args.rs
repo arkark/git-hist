@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::{App, Arg};
 
 #[derive(Debug)]
@@ -20,7 +19,7 @@ pub enum UserType {
 }
 
 impl Args {
-    pub fn load() -> Result<Args> {
+    pub fn load() -> Args {
         let matches = App::new(env!("CARGO_PKG_NAME"))
             .version(env!("CARGO_PKG_VERSION"))
             .about(env!("CARGO_PKG_DESCRIPTION"))
@@ -111,7 +110,7 @@ impl Args {
             .unwrap_or_else(|e| e.exit());
         let tab_spaces = " ".repeat(tab_size);
 
-        Ok(Args {
+        Args {
             file_path,
             should_use_full_commit_hash,
             beyond_last_line,
@@ -120,6 +119,6 @@ impl Args {
             user_for_date,
             date_format,
             tab_spaces,
-        })
+        }
     }
 }
