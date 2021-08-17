@@ -106,7 +106,9 @@ impl Args {
         };
         let date_format = String::from(matches.value_of("date-format").unwrap());
 
-        let tab_size = matches.value_of_t::<usize>("tab-size").ok().unwrap();
+        let tab_size = matches
+            .value_of_t::<usize>("tab-size")
+            .unwrap_or_else(|e| e.exit());
         let tab_spaces = " ".repeat(tab_size);
 
         Ok(Args {
