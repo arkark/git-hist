@@ -24,13 +24,13 @@ git hist <file>
 
 You can use `git-hist` as a git subcommand, so the hyphen is not required.
 
-### Commands
+### Keymap
 
-- `Left`/`Right`: Go to a previous/next commit.
-- `Up`/`Down` or mouse scrolls: Scroll up/down.
-- `PageUp`/`PageDown`: Scroll page up/down.
-- `Home`/`End`: Scroll to the top/bottom.
-- `q`/`Ctrl+c`/`Ctrl+d`: Exit.
+- <kbd>Left</kbd> / <kbd>Right</kbd> : Go to a previous/next commit.
+- <kbd>Up</kbd> / <kbd>Down</kbd> or mouse scrolls: Scroll up/down.
+- <kbd>PageUp</kbd> / <kbd>PageDown</kbd> : Scroll page up/down.
+- <kbd>Home</kbd> / <kbd>End</kbd> : Scroll to the top/bottom.
+- <kbd>q</kbd>, <kbd>Ctrl</kbd>+<kbd>c</kbd>, <kbd>Ctrl</kbd>+<kbd>d</kbd> : Exit.
 
 ### Help
 
