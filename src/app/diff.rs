@@ -79,18 +79,17 @@ impl<'a> Diff<'a> {
         text_diff
             .ops()
             .iter()
-            .map(|op| {
+            .flat_map(|op| {
                 text_diff.iter_inline_changes(op).map(|change| {
                     let parts = change
                         .iter_strings_lossy()
                         .map(|(emphasized, text)| {
-                            DiffLinePart::new(text.replace("\t", &self.args.tab_spaces), emphasized)
+                            DiffLinePart::new(text.replace('\t', &self.args.tab_spaces), emphasized)
                         })
                         .collect();
                     DiffLine::new(change.old_index(), change.new_index(), change.tag(), parts)
                 })
             })
-            .flatten()
             .enumerate()
             .map(|(index, mut line)| {
                 line.index = index;
