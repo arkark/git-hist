@@ -40,21 +40,19 @@ git-hist {{ version }}
 A CLI tool to quickly browse the git history of files on a terminal
 
 USAGE:
-    git-hist [FLAGS] [OPTIONS] <file>
+    git-hist [OPTIONS] <file>
 
 ARGS:
     <file>    Set a target file path
 
-FLAGS:
-        --beyond-last-line    Set whether the view will scroll beyond the last line
-        --emphasize-diff      Set whether the view will emphasize different parts
-        --full-hash           Show full commit hashes instead of abbreviated commit hashes
-    -h, --help                Print help information
-    -v, --version             Print version information
-
 OPTIONS:
+        --beyond-last-line        Set whether the view will scroll beyond the last line
         --date-format <format>    Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html [default: [%Y-%m-%d]]
         --date-of <user>          Use whether authors or committers for dates [default: author] [possible values: author, committer]
+        --emphasize-diff          Set whether the view will emphasize different parts
+        --full-hash               Show full commit hashes instead of abbreviated commit hashes
+    -h, --help                    Print help information
         --name-of <user>          Use whether authors or committers for names [default: author] [possible values: author, committer]
         --tab-size <size>         Set the number of spaces for a tab character (\t) [default: 4]
+    -v, --version                 Print version information
 ```
