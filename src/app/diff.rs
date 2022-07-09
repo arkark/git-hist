@@ -39,11 +39,11 @@ impl<'a> Diff<'a> {
             has_old_binary_file: repo
                 .find_blob(old_file_oid)
                 .map(|blob| blob.is_binary())
-                .unwrap_or(true),
+                .unwrap_or(false),
             has_new_binary_file: repo
                 .find_blob(new_file_oid)
                 .map(|blob| blob.is_binary())
-                .unwrap_or(true),
+                .unwrap_or(false),
             lines: OnceCell::new(),
             repo,
             args,
@@ -102,6 +102,7 @@ impl<'a> Diff<'a> {
         match self.status {
             Delta::Modified => format!("* Modified: {}", self.new_path.as_deref().unwrap()),
             Delta::Added => format!("* Added: {}", self.new_path.as_deref().unwrap()),
+            Delta::Deleted => format!("* Deleted: {}", self.new_path.as_deref().unwrap()),
             Delta::Renamed => format!(
                 "* Renamed: {} -> {}",
                 self.old_path.as_deref().unwrap(),
