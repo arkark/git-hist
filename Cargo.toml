@@ -8,7 +8,7 @@ license = "MIT"
 name = "git-hist"
 readme = "README.md"
 repository = "https://github.com/arkark/git-hist"
-version = "1.0.4"
+version = "1.0.5"
 
 [dependencies]
 anyhow = "1.0"
