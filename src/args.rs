@@ -28,28 +28,28 @@ impl Args {
                 Arg::new("help")
                     .long("help")
                     .short('h')
-                    .about("Print help information"),
+                    .help("Print help information"),
             )
             .arg(
                 Arg::new("version")
                     .long("version")
                     .short('v')
-                    .about("Print version information"),
+                    .help("Print version information"),
             )
             .arg(
                 Arg::new("full-hash")
                     .long("full-hash")
-                    .about("Show full commit hashes instead of abbreviated commit hashes"),
+                    .help("Show full commit hashes instead of abbreviated commit hashes"),
             )
             .arg(
                 Arg::new("beyond-last-line")
                     .long("beyond-last-line")
-                    .about("Set whether the view will scroll beyond the last line"),
+                    .help("Set whether the view will scroll beyond the last line"),
             )
             .arg(
                 Arg::new("emphasize-diff")
                     .long("emphasize-diff")
-                    .about("Set whether the view will emphasize different parts"),
+                    .help("Set whether the view will emphasize different parts"),
             )
             .arg(
                 Arg::new("name-of")
@@ -57,7 +57,7 @@ impl Args {
                     .value_name("user")
                     .possible_values(&["author", "committer"])
                     .default_value("author")
-                    .about("Use whether authors or committers for names"),
+                    .help("Use whether authors or committers for names"),
             )
             .arg(
                 Arg::new("date-of")
@@ -65,25 +65,25 @@ impl Args {
                     .value_name("user")
                     .possible_values(&["author", "committer"])
                     .default_value("author")
-                    .about("Use whether authors or committers for dates"),
+                    .help("Use whether authors or committers for dates"),
             )
             .arg(
                 Arg::new("date-format")
                     .long("date-format")
                     .value_name("format")
                     .default_value("[%Y-%m-%d]")
-                    .about("Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html"),
+                    .help("Set date format: ref. https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html"),
             )
             .arg(
                 Arg::new("tab-size")
                     .long("tab-size")
                     .value_name("size")
                     .default_value("4")
-                    .about("Set the number of spaces for a tab character (\\t)")
+                    .help("Set the number of spaces for a tab character (\\t)")
             )
             .arg(
                 Arg::new("file")
-                    .about("Set a target file path")
+                    .help("Set a target file path")
                     .required(true),
             )
             .get_matches();
